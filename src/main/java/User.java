@@ -5,18 +5,14 @@ import java.util.List;
 import java.util.Map;
 
 public class User {
-    private Map<String, Word> inLearningProcessEngRu;
-    private Map<String, Word> inLearningProcessRuEng;
-    private Map<String, Word> alreadyLearnedEngRu;
-    private Map<String, Word> alreadyLearnedRuEng;
-    private AllWordBase allWordBase;
+    private final Map<String, Word> inLearningProcess;
+    private Map<String, Word> alreadyLearned;
+    private final AllWordBase allWordBase;
 
 
     public User(AllWordBase allWordBase) {
-        inLearningProcessEngRu = new HashMap<>();
-        inLearningProcessRuEng = new HashMap<>();
-        alreadyLearnedEngRu = new HashMap<>();
-        alreadyLearnedRuEng = new HashMap<>();
+        inLearningProcess = new HashMap<>();
+        alreadyLearned = new HashMap<>();
         this.allWordBase = allWordBase;
     }
 
@@ -24,13 +20,24 @@ public class User {
         String[] wordsArr = words.trim().split(" ");
         for (String tempWord : wordsArr) {
             if (tempWord.length() > 1) {
-                if (allWordBase.check(tempWord)) {
-                    addWordFromAllWordMap(tempWord);
+                if (!checkInUserMaps(tempWord)) {
+                    if (allWordBase.check(tempWord)) {
+                        addWordFromAllWordMap(tempWord);
+                    } else {
+                        addWordFromTranslator(tempWord);
+                    }
                 } else {
-                    addWordFromTranslator(tempWord);
+                    //Отправить сообщение, что слово уже есть в твоем словаре
                 }
+            } else {
+                //отправить сообщение, что слово должно состоять из 2 и более слов
             }
         }
+    }
+
+    private boolean checkInUserMaps(String tempWord) {
+        return inLearningProcess.containsKey(tempWord)
+                || alreadyLearned.containsKey(tempWord);
     }
 
     private void addWordFromTranslator(String inputWord) {
@@ -46,8 +53,8 @@ public class User {
 
         Word word = new Word(translatedWord.get(0), translatedWord.get(1));
 
-        inLearningProcessEngRu.put(word.getEnWord(), word);
-        inLearningProcessRuEng.put(word.getRuWord(), word);
+        inLearningProcess.put(word.getEnWord(), word);
+        inLearningProcess.put(word.getRuWord(), word);
 
         allWordBase.add(word);
 
@@ -57,8 +64,8 @@ public class User {
     private void addWordFromAllWordMap(String key) {
         List<Word> wordList = allWordBase.getWordObjects(key);
         for (Word tempWord : wordList) {
-            inLearningProcessEngRu.put(tempWord.getEnWord(), tempWord);
-            inLearningProcessRuEng.put(tempWord.getRuWord(), tempWord);
+            inLearningProcess.put(tempWord.getEnWord(), tempWord);
+            inLearningProcess.put(tempWord.getRuWord(), tempWord);
         }
 
         //Нужно добавить отправку сообщения уведомления

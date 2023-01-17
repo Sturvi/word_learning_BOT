@@ -15,7 +15,8 @@ public class TranslatorText {
     // Instantiates the OkHttpClient.
     OkHttpClient client = new OkHttpClient();
 
-    // This function performs a POST request.
+    /*    This method sends the word to microsoft translate, receives the response, parses it and returns a List of 2 elements.
+        The first element will always be a word in English, the second in Russian */
     public ArrayList<String> post(String word) throws IOException {
         MediaType mediaType = MediaType.parse("application/json");
         RequestBody body = RequestBody.create(mediaType,
@@ -32,19 +33,15 @@ public class TranslatorText {
         String jsonString = response.body().string();
 
         ArrayList<String> result = new ArrayList<>();
-        try {
-            JsonParser jsonParser = new JsonParser();
-            JsonArray jsonArray = jsonParser.parse(jsonString).getAsJsonArray();
-            JsonObject jsonObject = jsonArray.get(0).getAsJsonObject();
 
-            JsonArray translations = jsonObject.get("translations").getAsJsonArray();
-            for (JsonElement translation : translations) {
-                JsonObject translationObject = translation.getAsJsonObject();
-                result.add(translationObject.get("text").getAsString());
-            }
+        JsonParser jsonParser = new JsonParser();
+        JsonArray jsonArray = jsonParser.parse(jsonString).getAsJsonArray();
+        JsonObject jsonObject = jsonArray.get(0).getAsJsonObject();
 
-        } catch (Exception e) {
-            System.out.println(e);
+        JsonArray translations = jsonObject.get("translations").getAsJsonArray();
+        for (JsonElement translation : translations) {
+            JsonObject translationObject = translation.getAsJsonObject();
+            result.add(translationObject.get("text").getAsString());
         }
 
         return result;

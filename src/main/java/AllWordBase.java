@@ -3,27 +3,27 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class AllWordBase {
-    private static Map<String, ArrayList<Word>> allWordInBase;
+    private final Map<String, ArrayList<Word>> allWordInBase;
 
 
     public AllWordBase() {
         allWordInBase = new HashMap<>();
     }
 
-    public ArrayList<Word> getWordObjects (String key) {
+    public ArrayList<Word> getWordObjects(String key) {
         return allWordInBase.get(key);
     }
 
-    public boolean check (String key){
+    public boolean check(String key) {
         return allWordInBase.containsKey(key);
     }
 
-    public void add (Word word){
+    public void add(Word word) {
 
-        if (!allWordInBase.containsKey(word.getEnWord())){
+        if (!allWordInBase.containsKey(word.getEnWord())) {
             allWordInBase.put(word.getEnWord(), new ArrayList<>());
         }
-        if (!allWordInBase.containsKey(word.getRuWord())){
+        if (!allWordInBase.containsKey(word.getRuWord())) {
             allWordInBase.put(word.getRuWord(), new ArrayList<>());
         }
 
