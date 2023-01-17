@@ -1,5 +1,6 @@
 public class Main {
     public static void main(String[] args) {
-        System.out.println("Hello world!");
+        TranslatorText translatorText = new TranslatorText();
+        System.out.println(translatorText.translate("remove"));
     }
 }

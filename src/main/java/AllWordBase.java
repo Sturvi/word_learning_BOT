@@ -3,22 +3,18 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class AllWordBase {
-    private final Map<String, ArrayList<Word>> allWordInBase;
+    private static final Map<String, ArrayList<Word>> allWordInBase = new HashMap<>();
 
 
-    public AllWordBase() {
-        allWordInBase = new HashMap<>();
-    }
-
-    public ArrayList<Word> getWordObjects(String key) {
+    public static ArrayList<Word> getWordObjects(String key) {
         return allWordInBase.get(key);
     }
 
-    public boolean check(String key) {
+    public static boolean check(String key) {
         return allWordInBase.containsKey(key);
     }
 
-    public void add(Word word) {
+    public static void add(Word word) {
 
         if (!allWordInBase.containsKey(word.getEnWord())) {
             allWordInBase.put(word.getEnWord(), new ArrayList<>());

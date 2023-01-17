@@ -7,13 +7,13 @@ import java.util.Map;
 public class User {
     private final Map<String, Word> inLearningProcess;
     private Map<String, Word> alreadyLearned;
-    private final AllWordBase allWordBase;
+    private boolean inAddMenyu;
 
 
-    public User(AllWordBase allWordBase) {
+    public User() {
         inLearningProcess = new HashMap<>();
         alreadyLearned = new HashMap<>();
-        this.allWordBase = allWordBase;
+        inAddMenyu = false;
     }
 
     public void add(String words) {
@@ -21,7 +21,7 @@ public class User {
         for (String tempWord : wordsArr) {
             if (tempWord.length() > 1) {
                 if (!checkInUserMaps(tempWord)) {
-                    if (allWordBase.check(tempWord)) {
+                    if (AllWordBase.check(tempWord)) {
                         addWordFromAllWordMap(tempWord);
                     } else {
                         addWordFromTranslator(tempWord);
@@ -41,33 +41,38 @@ public class User {
     }
 
     private void addWordFromTranslator(String inputWord) {
-        ArrayList<String> translatedWord = new ArrayList<>();
+        var translator = new TranslatorText();
 
-        TranslatorText translator = new TranslatorText();
-        try {
-            //the first word in this List is in English, the second in Russian
-            translatedWord = translator.post(inputWord);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+        //the first word in this List is in English, the second in Russian
+        var translatedWord = translator.translate(inputWord);
+
+        var word = new Word(translatedWord.get(0), translatedWord.get(1));
+
+        if (!translatedWord.get(0).equals(translatedWord.get(1))){
+            inLearningProcess.put(word.getEnWord(), word);
+            inLearningProcess.put(word.getRuWord(), word);
+
+            AllWordBase.add(word);
         }
-
-        Word word = new Word(translatedWord.get(0), translatedWord.get(1));
-
-        inLearningProcess.put(word.getEnWord(), word);
-        inLearningProcess.put(word.getRuWord(), word);
-
-        allWordBase.add(word);
 
         //Нужно добавить отправку сообщения уведомления
     }
 
     private void addWordFromAllWordMap(String key) {
-        List<Word> wordList = allWordBase.getWordObjects(key);
+        List<Word> wordList = AllWordBase.getWordObjects(key);
         for (Word tempWord : wordList) {
             inLearningProcess.put(tempWord.getEnWord(), tempWord);
             inLearningProcess.put(tempWord.getRuWord(), tempWord);
         }
 
         //Нужно добавить отправку сообщения уведомления
+    }
+
+    public boolean isInAddMenu() {
+        return inAddMenyu;
+    }
+
+    public void setInAddMenu(boolean inAddMenu) {
+        this.inAddMenyu = inAddMenu;
     }
 }
