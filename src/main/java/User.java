@@ -1,14 +1,14 @@
-import java.io.IOException;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 public class User {
+    private static final String API_KEY = "AIzaSyAbzEWfx3-YaA4NstSglQztTzpSGSDkmgA";
+
     private final Map<String, Word> inLearningProcess;
+
     private Map<String, Word> alreadyLearned;
     private boolean inAddMenyu;
-
 
     public User() {
         inLearningProcess = new HashMap<>();
@@ -40,6 +40,13 @@ public class User {
                 || alreadyLearned.containsKey(tempWord);
     }
 
+    public String getRandomLearningWord() {
+        String[] keysArr = inLearningProcess.keySet().toArray(new String[0]);
+        int random = (int) (Math.random() * keysArr.length - 1);
+
+        return keysArr[random];
+    }
+
     private void addWordFromTranslator(String inputWord) {
         var translator = new TranslatorText();
 
@@ -48,7 +55,7 @@ public class User {
 
         var word = new Word(translatedWord.get(0), translatedWord.get(1));
 
-        if (!translatedWord.get(0).equals(translatedWord.get(1))){
+        if (!translatedWord.get(0).equals(translatedWord.get(1))) {
             inLearningProcess.put(word.getEnWord(), word);
             inLearningProcess.put(word.getRuWord(), word);
 
@@ -63,10 +70,12 @@ public class User {
         for (Word tempWord : wordList) {
             inLearningProcess.put(tempWord.getEnWord(), tempWord);
             inLearningProcess.put(tempWord.getRuWord(), tempWord);
+
         }
 
         //Нужно добавить отправку сообщения уведомления
     }
+
 
     public boolean isInAddMenu() {
         return inAddMenyu;
@@ -74,5 +83,9 @@ public class User {
 
     public void setInAddMenu(boolean inAddMenu) {
         this.inAddMenyu = inAddMenu;
+    }
+
+    public Word getInLearningProcess(String key) {
+        return inLearningProcess.get(key);
     }
 }
