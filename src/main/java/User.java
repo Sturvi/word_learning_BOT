@@ -48,10 +48,8 @@ public class User {
     }
 
     private void addWordFromTranslator(String inputWord) {
-        var translator = new TranslatorText();
-
         //the first word in this List is in English, the second in Russian
-        var translatedWord = translator.translate(inputWord);
+        var translatedWord = Word.translate(inputWord);
 
         var word = new Word(translatedWord.get(0), translatedWord.get(1));
 

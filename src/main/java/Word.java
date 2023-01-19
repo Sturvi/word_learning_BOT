@@ -1,8 +1,14 @@
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.microsoft.cognitiveservices.speech.*;
 import com.microsoft.cognitiveservices.speech.audio.AudioConfig;
+import okhttp3.*;
 
 import java.io.*;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Objects;
 import java.util.Scanner;
 
@@ -86,6 +92,49 @@ public class Word {
         }
 
     }
+
+
+    public static ArrayList<String> translate(String word) {
+        String key = "9a7b89f2526247049ab6ec3980ae56a8";
+        String location = "germanywestcentral";
+        OkHttpClient client = new OkHttpClient();
+
+        MediaType mediaType = MediaType.parse("application/json");
+        RequestBody body = RequestBody.create(mediaType,
+                "[{\"Text\": \"" + word + "\"}]");
+        Request request = new Request.Builder()
+                .url("https://api.cognitive.microsofttranslator.com/translate?api-version=3.0&to=en&to=ru")
+                .post(body)
+                .addHeader("Ocp-Apim-Subscription-Key", key)
+                // location required if you're using a multi-service or regional (not global) resource.
+                .addHeader("Ocp-Apim-Subscription-Region", location)
+                .addHeader("Content-type", "application/json")
+                .build();
+        Response response;
+        String jsonString;
+
+        try {
+            response = client.newCall(request).execute();
+            jsonString = response.body().string();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+        ArrayList<String> result = new ArrayList<>();
+
+        JsonParser jsonParser = new JsonParser();
+        JsonArray jsonArray = jsonParser.parse(jsonString).getAsJsonArray();
+        JsonObject jsonObject = jsonArray.get(0).getAsJsonObject();
+
+        JsonArray translations = jsonObject.get("translations").getAsJsonArray();
+        for (JsonElement translation : translations) {
+            JsonObject translationObject = translation.getAsJsonObject();
+            result.add(translationObject.get("text").getAsString());
+        }
+
+        return result;
+    }
+
 
     @Override
     public boolean equals(Object o) {

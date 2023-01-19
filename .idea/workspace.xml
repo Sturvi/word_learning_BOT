@@ -6,8 +6,9 @@
   <component name="ChangeListManager">
     <list default="true" id="17fabfc4-ac16-4de8-b079-1c103929943d" name="Changes" comment="deleted 2 maps from User class">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/pom.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/TelegramApiConnect.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/TelegramApiConnect.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/TranslatorText.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/User.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/User.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/Word.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/Word.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -38,7 +39,7 @@
     </favorite-branches>
     <option name="RECENT_BRANCH_BY_REPOSITORY">
       <map>
-        <entry key="$PROJECT_DIR$" value="main" />
+        <entry key="$PROJECT_DIR$" value="0.5_+" />
       </map>
     </option>
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
@@ -125,7 +126,19 @@
       <map>
         <entry key="MAIN">
           <value>
-            <State />
+            <State>
+              <option name="FILTERS">
+                <map>
+                  <entry key="branch">
+                    <value>
+                      <list>
+                        <option value="0.5_+_testing_for_delete_Traslator_text_class" />
+                      </list>
+                    </value>
+                  </entry>
+                </map>
+              </option>
+            </State>
           </value>
         </entry>
       </map>

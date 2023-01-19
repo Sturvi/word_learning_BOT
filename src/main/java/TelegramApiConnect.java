@@ -68,16 +68,6 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
         }
     }
 
-
-    /*    var textForMessage = new ArrayList<String>();
-
-            if (key.equals(inLearningProcess.get(key).getEnWord())) {
-            textForMessage.add(inLearningProcess.get(key).getEnWord());
-            textForMessage.add(inLearningProcess.get(key).getRuWord());
-        } else {
-            textForMessage.add(inLearningProcess.get(key).getRuWord());
-            textForMessage.add(inLearningProcess.get(key).getEnWord());
-        }*/
     private void creatSendingMessage(String key, Message message) {
         User user = userMap.get(message.getChatId());
         Word word = user.getInLearningProcess(key);
@@ -100,6 +90,7 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
 
         InputFile inputFile = new InputFile(voice);
         SendAudio audio = new SendAudio();
+        audio.setTitle("Произношение слова");
         audio.setChatId(message.getChatId().toString());
         audio.setAudio(inputFile);
 
