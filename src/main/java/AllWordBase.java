@@ -5,7 +5,6 @@ import java.util.Map;
 public class AllWordBase {
     private static final Map<String, ArrayList<Word>> allWordInBase = new HashMap<>();
 
-
     public static ArrayList<Word> getWordObjects(String key) {
         return allWordInBase.get(key);
     }

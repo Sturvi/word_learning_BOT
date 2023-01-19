@@ -3,22 +3,17 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.microsoft.cognitiveservices.speech.*;
-import com.microsoft.cognitiveservices.speech.audio.AudioConfig;
 import okhttp3.*;
 
 import java.io.*;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Objects;
-import java.util.Scanner;
 
 public class Word {
 
     private final String enWord;
     private final String ruWord;
     private Integer count;
-
-    private static final String API_KEY = "AIzaSyAbzEWfx3-YaA4NstSglQztTzpSGSDkmgA";
 
     public Word(String enWord, String ruWord) {
         this.enWord = enWord;
@@ -42,6 +37,8 @@ public class Word {
         return ruWord;
     }
 
+    /*Данный метод при запросе возвращает объект File по адресу которого находится аудио файл с английской озвучкой слова.
+     * В первую очередь проверяет среди уже сохраненных слов. Если не найдено отправляет в TTS*/
     public File getVoice() throws Exception {
         File directory = new File("voice");
 
@@ -58,14 +55,12 @@ public class Word {
         return voice;
     }
 
+    /*Данный метод принимает String который нужно озвучить и File по адресу которого должен находится айдиофайл с
+     * извучкой. Посылает данный текст в Microsoft TTS и полученный результат сохраняет по адресу в объекте File*/
     private void createSpeech(String text, File voice) throws Exception {
         // Replace with your own subscription key and region
         String subscriptionKey = "e2c7953181e04a5cb85981e5a309d7f4";
         String serviceRegion = "germanywestcentral";
-
-        // Replace with the path to where you want to save the .wav file
-        String filePath = "voice/" + text + ".wav";
-
 
         SpeechConfig speechConfig = SpeechConfig.fromSubscription(subscriptionKey, serviceRegion);
 
@@ -90,10 +85,10 @@ public class Word {
         } else {
             System.out.println("Error getting audio data: ");
         }
-
     }
 
-
+    /*Данный метод принимает String отправляет его в Microsoft TranslatorAPi получает перевод
+    и возвращает его в виде ArrayList, где первый элемент это слово на английском, второй элемент на русском*/
     public static ArrayList<String> translate(String word) {
         String key = "9a7b89f2526247049ab6ec3980ae56a8";
         String location = "germanywestcentral";
@@ -134,7 +129,6 @@ public class Word {
 
         return result;
     }
-
 
     @Override
     public boolean equals(Object o) {

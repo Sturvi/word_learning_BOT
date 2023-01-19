@@ -15,18 +15,15 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+/*Данный класс подключается к телеграмм боту, принимает обновления,
+распледеляет задачи и отправляет сообщения пользователям*/
 public class TelegramApiConnect extends TelegramLongPollingBot {
-    Map<Long, User> userMap;
-
-    public TelegramApiConnect(Map<Long, User> userMap) {
-        this.userMap = userMap;
-    }
 
     @Override
     public void onUpdateReceived(Update update) {
         Long chatId = update.getMessage() == null ? update.getCallbackQuery().getMessage().getChatId() : update.getMessage().getChatId();
-        if (!userMap.containsKey(chatId)) {
-            userMap.put(chatId, new User());
+        if (!Main.userMap.containsKey(chatId)) {
+            Main.userMap.put(chatId, new User());
         }
 
         if (update.hasCallbackQuery()) {
@@ -37,13 +34,16 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
 
     }
 
+    /*Оброботка нажаний на клавиши команд*/
     private void handleCallback(CallbackQuery callbackQuery) {
 
     }
 
+
+    /*Оброботка текстовых команд или в случае, если пользователь присылает слова на добавление в словарь*/
     private void handleTextMessage(Message message) {
         String messageText = message.getText();
-        User user = userMap.get(message.getChatId());
+        User user = Main.userMap.get(message.getChatId());
 
         switch (messageText) {
             case ("/start") -> {
@@ -51,14 +51,38 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
                 help(message);
             }
             case ("\uD83D\uDDD2 Добавить слова") -> {
-                user.setInAddMenu(true);
+                user.setMenu("inAddMenu");
                 sendMessage(message.getChatId(), "Можете отправлять слова, которые хотите добавить в свою коллекию " +
-                        "\n\n Можете отправлять много слов, разделенных пробелами или в разных сообщениях");
+                        "\n\n Можете отправлять много слов, разделенных пробелами или в разных сообщениях" +
+                        "\n\nУчтите, что слова переводятся автоматически, с помощью сервисов онлайн перевода и " +
+                        "никак не проходят дополнительные провекрки орфографии. Поэтому даже при небольших ошибка, " +
+                        "перевод также будет ошибочный.");
             }
             case ("\uD83D\uDC68\uD83C\uDFFB\u200D\uD83C\uDF93 Учить слова") -> {
-                user.setInAddMenu(false);
-                var wordsForSend = user.getRandomLearningWord();
-                creatSendingMessage(wordsForSend, message);
+                user.setMenu("inLeaningMenu");
+                try {
+                    String wordsForSend = user.getRandomLearningWord();
+                    sendWordWithVoice(wordsForSend, message);
+                } catch (ArrayIndexOutOfBoundsException e) {
+                    sendMessage(message.getChatId(), "У вас нет слов на изучения в данный момент. Пожалуйста, " +
+                            "добавьте новые слова, или воспользуйтесь нашим банком слов.");
+                } catch (User.IncorrectMenuSelectionException e) {
+                    sendMessage(message.getChatId(), "Вы не выбрали меню. Пожалуйста выбери действие которе " +
+                            "необходимо выполнить из списка ниже ⬇");
+                }
+            }
+            case ("\uD83D\uDD01 Повторять слова") -> {
+                user.setMenu("inRepeatMenu");
+                try {
+                    String wordsForSend = user.getRandomLearningWord();
+                    sendWordWithVoice(wordsForSend, message);
+                } catch (ArrayIndexOutOfBoundsException e) {
+                    sendMessage(message.getChatId(), "У вас нет слов на повторении в данный момент. Пожалуйста, " +
+                            "воспользуйтесь меню \"\uD83D\uDC68\uD83C\uDFFB\u200D\uD83C\uDF93 Учить слова\"");
+                } catch (User.IncorrectMenuSelectionException e) {
+                    sendMessage(message.getChatId(), "Вы не выбрали меню. Пожалуйста выбери действие которе " +
+                            "необходимо выполнить из списка ниже ⬇");
+                }
             }
             default -> {
                 if (user.isInAddMenu()) {
@@ -68,16 +92,18 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
         }
     }
 
-    private void creatSendingMessage(String key, Message message) {
-        User user = userMap.get(message.getChatId());
+    /*Данный метод отправляет пользователю слово c произношением. В случае невозможность получить аудио файл с произношением
+    отправляет просто слово*/
+    private void sendWordWithVoice(String key, Message message) {
+        User user = Main.userMap.get(message.getChatId());
         Word word = user.getInLearningProcess(key);
 
         String textForMessage;
 
         if (word.getEnWord().equals(key)) {
-            textForMessage = key + "\n<span class='tg-spoiler'> " + word.getRuWord() + " </span>";
+            textForMessage = key + "   <span class='tg-spoiler'>   " + word.getRuWord() + "   </span>";
         } else {
-            textForMessage = word.getRuWord() + "\n<span class='tg-spoiler'> " + word.getEnWord() +" </span>";
+            textForMessage = word.getRuWord() + "   <span class='tg-spoiler'>   " + word.getEnWord() + "   </span>";
         }
 
         File voice;
@@ -107,6 +133,7 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
 
     }
 
+    /*Отправка обычных тектовых сообщений. Принимает Long chatId и текст сообщения*/
     public void sendMessage(Long chatId, String text) {
         SendMessage sendMessage = new SendMessage();
         sendMessage.enableMarkdown(true);
@@ -122,6 +149,7 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
         }
     }
 
+    /*Нижние клавиши*/
     public void setButtons(SendMessage sendMessage) {
         ReplyKeyboardMarkup replyKeyboardMarkup = new ReplyKeyboardMarkup();
         sendMessage.setReplyMarkup(replyKeyboardMarkup);
@@ -134,7 +162,7 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
         KeyboardRow keyboardSecondRow = new KeyboardRow();
 
         keyboardFirstRow.add(new KeyboardButton("\uD83D\uDDD2 Добавить слова"));
-        keyboardFirstRow.add(new KeyboardButton("\uD83D\uDDC3 Добавить 100 случайных слов"));
+        keyboardFirstRow.add(new KeyboardButton("\uD83D\uDDC3 Добавить 50 случайных слов"));
         keyboardFirstRow.add(new KeyboardButton("\uD83D\uDEE0 Помощь"));
         keyboardSecondRow.add(new KeyboardButton("\uD83D\uDD01 Повторять слова"));
         keyboardSecondRow.add(new KeyboardButton("\uD83D\uDC68\uD83C\uDFFB\u200D\uD83C\uDF93 Учить слова"));

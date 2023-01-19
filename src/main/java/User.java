@@ -8,12 +8,16 @@ public class User {
     private final Map<String, Word> inLearningProcess;
 
     private Map<String, Word> alreadyLearned;
-    private boolean inAddMenyu;
+    private boolean inAddMenu;
+    private boolean inLeaningMenu;
+    private boolean inRepeatMenu;
 
     public User() {
         inLearningProcess = new HashMap<>();
         alreadyLearned = new HashMap<>();
-        inAddMenyu = false;
+        inAddMenu = false;
+        inLeaningMenu = false;
+        inRepeatMenu = false;
     }
 
     public void add(String words) {
@@ -40,11 +44,28 @@ public class User {
                 || alreadyLearned.containsKey(tempWord);
     }
 
-    public String getRandomLearningWord() {
-        String[] keysArr = inLearningProcess.keySet().toArray(new String[0]);
-        int random = (int) (Math.random() * keysArr.length - 1);
+    public String getRandomLearningWord() throws ArrayIndexOutOfBoundsException, IncorrectMenuSelectionException {
+        if (inLeaningMenu) {
+            String[] keysArr = inLearningProcess.keySet().toArray(new String[0]);
+            if (keysArr.length == 0){
+                throw new ArrayIndexOutOfBoundsException();
+            }
+            int random = (int) (Math.random() * keysArr.length - 1);
 
-        return keysArr[random];
+            return keysArr[random];
+        } else if (inRepeatMenu) {
+            String[] keysArr = alreadyLearned.keySet().toArray(new String[0]);
+            if (keysArr.length == 0){
+                throw new ArrayIndexOutOfBoundsException();
+            }
+            int random = (int) (Math.random() * keysArr.length - 1);
+
+            return keysArr[random];
+        } else {
+            throw new IncorrectMenuSelectionException();
+        }
+
+
     }
 
     private void addWordFromTranslator(String inputWord) {
@@ -76,14 +97,45 @@ public class User {
 
 
     public boolean isInAddMenu() {
-        return inAddMenyu;
+        return inAddMenu;
     }
 
-    public void setInAddMenu(boolean inAddMenu) {
-        this.inAddMenyu = inAddMenu;
+    public void setMenu(String menu) {
+        switch (menu) {
+            case ("inAddMenu"):
+                inAddMenu = true;
+                inRepeatMenu = false;
+                inLeaningMenu = false;
+                break;
+            case ("inRepeatMenu"):
+                inAddMenu = false;
+                inRepeatMenu = true;
+                inLeaningMenu = false;
+                break;
+            case ("inLeaningMenu"):
+                inAddMenu = false;
+                inRepeatMenu = false;
+                inLeaningMenu = true;
+                break;
+            default:
+                inAddMenu = false;
+                inRepeatMenu = false;
+                inLeaningMenu = false;
+        }
     }
 
     public Word getInLearningProcess(String key) {
         return inLearningProcess.get(key);
+    }
+
+    public boolean isInLeaningMenu() {
+        return inLeaningMenu;
+    }
+
+    public boolean isInRepeatMenu() {
+        return inRepeatMenu;
+    }
+
+    public class IncorrectMenuSelectionException extends Exception {
     }
 }

@@ -6,14 +6,14 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class Main {
+    public static Map<Long, User> userMap = new HashMap<>();
+
     public static void main(String[] args) {
-        /*TranslatorText translatorText = new TranslatorText();
-        System.out.println(translatorText.translate("remove"));*/
-        Map<Long, User> userMap = new HashMap<>();
+
         TelegramBotsApi telegramBotsApi = null;
         try {
             telegramBotsApi = new TelegramBotsApi(DefaultBotSession.class);
-            telegramBotsApi.registerBot(new TelegramApiConnect(userMap));
+            telegramBotsApi.registerBot(new TelegramApiConnect());
         } catch (TelegramApiException e) {
             throw new RuntimeException(e);
         }
