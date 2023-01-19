@@ -1,11 +1,10 @@
-import com.google.cloud.texttospeech.v1.*;
-import com.google.protobuf.ByteString;
+import com.microsoft.cognitiveservices.speech.*;
+import com.microsoft.cognitiveservices.speech.audio.AudioConfig;
 
-import java.io.ByteArrayInputStream;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.InputStream;
+import java.io.*;
+import java.nio.file.Paths;
 import java.util.Objects;
+import java.util.Scanner;
 
 public class Word {
 
@@ -44,7 +43,7 @@ public class Word {
             directory.mkdirs();
         }
 
-        File voice = new File("voice/" + getEnWord() + ".mp3");
+        File voice = new File("voice/" + getEnWord() + ".wav");
 
         if (!voice.exists()) {
             createSpeech(getEnWord(), voice);
@@ -53,70 +52,40 @@ public class Word {
         return voice;
     }
 
-    private void createSpeech(String text, File file) throws Exception {
-// Replace with your own subscription key and region
+    private void createSpeech(String text, File voice) throws Exception {
+        // Replace with your own subscription key and region
         String subscriptionKey = "e2c7953181e04a5cb85981e5a309d7f4";
-        String region = "germanywestcentral";
+        String serviceRegion = "germanywestcentral";
 
-        // Create an configuration object with the subscription key and region
-        SpeechConfig config = SpeechConfig.fromSubscription(subscriptionKey, region);
+        // Replace with the path to where you want to save the .wav file
+        String filePath = "voice/" + text + ".wav";
 
-        // Create a synthesizer with the configuration object
-        SpeechSynthesizer synthesizer = new SpeechSynthesizer(config);
 
-        // Create a stream to save the TTS output
-        OutputStream outputStream;
-        try {
-            outputStream = new FileOutputStream(file);
-        } catch (FileNotFoundException ex) {
-            System.out.println("Error creating the output stream: " + ex.getMessage());
+        SpeechConfig speechConfig = SpeechConfig.fromSubscription(subscriptionKey, serviceRegion);
+
+        speechConfig.setSpeechSynthesisVoiceName("en-US-JennyNeural");
+
+        SpeechSynthesizer speechSynthesizer = new SpeechSynthesizer(speechConfig);
+
+        if (text.isEmpty()) {
             return;
         }
 
-        // Set the synthesizer output format to MP3
-        synthesizer.setOutputFormat(SpeechOutputFormat.MP3);
+        // Get the synthesized speech as an audio stream
+        SpeechSynthesisResult result = speechSynthesizer.SpeakText(text);
 
-        // Start synthesizing the text
-        SpeechSynthesisResult result = synthesizer.speakText(text, outputStream);
-
-        // Check for errors
-        if (result.getReason() != ResultReason.SynthesizingAudioCompleted) {
-            System.out.println("Error synthesizing the text: " + result.getReason());
-            return;
+        if (result.getAudioData() != null) {
+            try (FileOutputStream fos = new FileOutputStream(voice)) {
+                fos.write(result.getAudioData());
+                System.out.println("Audio data written to file: output.wav");
+            } catch (IOException ex) {
+                System.out.println("Error writing audio data to file: " + ex.getMessage());
+            }
+        } else {
+            System.out.println("Error getting audio data: ");
         }
 
-        System.out.println("TTS output saved to output.mp3");
     }
-
-    /*    private void createSpeech(String text, File file) throws Exception {
-        TextToSpeechClient ttsClient = TextToSpeechClient.create();
-
-        SynthesisInput input = SynthesisInput.newBuilder().setText(text).build();
-        VoiceSelectionParams voice = VoiceSelectionParams.newBuilder()
-                .setLanguageCode("en-US")
-                .setSsmlGender(SsmlVoiceGender.NEUTRAL)
-                .build();
-        AudioConfig audioConfig = AudioConfig.newBuilder()
-                .setAudioEncoding(AudioEncoding.MP3)
-                .build();
-        SynthesizeSpeechRequest request = SynthesizeSpeechRequest.newBuilder()
-                .setInput(input)
-                .setVoice(voice)
-                .setAudioConfig(audioConfig)
-                .build();
-
-        SynthesizeSpeechResponse response = ttsClient.synthesizeSpeech(request);
-        ByteString audioContents = response.getAudioContent();
-
-        InputStream inputStream = new ByteArrayInputStream(audioContents.toByteArray());
-        FileOutputStream fileOutputStream = new FileOutputStream(file);
-        byte[] buffer = new byte[1024];
-        int bytesRead;
-        while ((bytesRead = inputStream.read(buffer)) != -1) {
-            fileOutputStream.write(buffer, 0, bytesRead);
-        }
-
-    }*/
 
     @Override
     public boolean equals(Object o) {

@@ -85,9 +85,9 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
         String textForMessage;
 
         if (word.getEnWord().equals(key)) {
-            textForMessage = key + "\n || " + word.getRuWord() + " ||";
+            textForMessage = key + "\n<span class='tg-spoiler'> " + word.getRuWord() + " </span>";
         } else {
-            textForMessage = word.getRuWord() + "\n || " + key +" ||";
+            textForMessage = word.getRuWord() + "\n<span class='tg-spoiler'> " + word.getEnWord() +" </span>";
         }
 
         File voice;
@@ -102,13 +102,13 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
         SendAudio audio = new SendAudio();
         audio.setChatId(message.getChatId().toString());
         audio.setAudio(inputFile);
-        audio.setTitle(textForMessage);
 
         try {
             execute(audio);
         } catch (TelegramApiException e) {
             throw new RuntimeException(e);
         }
+        sendMessage(message.getChatId(), textForMessage);
     }
 
 
@@ -122,6 +122,7 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
         sendMessage.setChatId(chatId.toString());
         // sendMessage.setReplyToMessageId(message.getMessageId());
         sendMessage.setText(text);
+        sendMessage.enableHtml(true);
         try {
             setButtons(sendMessage);
             execute(sendMessage);
