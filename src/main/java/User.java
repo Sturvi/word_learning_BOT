@@ -1,66 +1,91 @@
-import java.io.IOException;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 public class User {
-    private Map<String, Word> inLearningProcessEngRu;
-    private Map<String, Word> inLearningProcessRuEng;
-    private Map<String, Word> alreadyLearnedEngRu;
-    private Map<String, Word> alreadyLearnedRuEng;
-    private AllWordBase allWordBase;
+    private static final String API_KEY = "AIzaSyAbzEWfx3-YaA4NstSglQztTzpSGSDkmgA";
 
+    private final Map<String, Word> inLearningProcess;
 
-    public User(AllWordBase allWordBase) {
-        inLearningProcessEngRu = new HashMap<>();
-        inLearningProcessRuEng = new HashMap<>();
-        alreadyLearnedEngRu = new HashMap<>();
-        alreadyLearnedRuEng = new HashMap<>();
-        this.allWordBase = allWordBase;
+    private Map<String, Word> alreadyLearned;
+    private boolean inAddMenyu;
+
+    public User() {
+        inLearningProcess = new HashMap<>();
+        alreadyLearned = new HashMap<>();
+        inAddMenyu = false;
     }
 
     public void add(String words) {
         String[] wordsArr = words.trim().split(" ");
         for (String tempWord : wordsArr) {
             if (tempWord.length() > 1) {
-                if (allWordBase.check(tempWord)) {
-                    addWordFromAllWordMap(tempWord);
+                if (!checkInUserMaps(tempWord)) {
+                    if (AllWordBase.check(tempWord)) {
+                        addWordFromAllWordMap(tempWord);
+                    } else {
+                        addWordFromTranslator(tempWord);
+                    }
                 } else {
-                    addWordFromTranslator(tempWord);
+                    //Отправить сообщение, что слово уже есть в твоем словаре
                 }
+            } else {
+                //отправить сообщение, что слово должно состоять из 2 и более слов
             }
         }
     }
 
+    private boolean checkInUserMaps(String tempWord) {
+        return inLearningProcess.containsKey(tempWord)
+                || alreadyLearned.containsKey(tempWord);
+    }
+
+    public String getRandomLearningWord() {
+        String[] keysArr = inLearningProcess.keySet().toArray(new String[0]);
+        int random = (int) (Math.random() * keysArr.length - 1);
+
+        return keysArr[random];
+    }
+
     private void addWordFromTranslator(String inputWord) {
-        ArrayList<String> translatedWord = new ArrayList<>();
+        var translator = new TranslatorText();
 
-        TranslatorText translator = new TranslatorText();
-        try {
-            //the first word in this List is in English, the second in Russian
-            translatedWord = translator.post(inputWord);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+        //the first word in this List is in English, the second in Russian
+        var translatedWord = translator.translate(inputWord);
+
+        var word = new Word(translatedWord.get(0), translatedWord.get(1));
+
+        if (!translatedWord.get(0).equals(translatedWord.get(1))) {
+            inLearningProcess.put(word.getEnWord(), word);
+            inLearningProcess.put(word.getRuWord(), word);
+
+            AllWordBase.add(word);
         }
-
-        Word word = new Word(translatedWord.get(0), translatedWord.get(1));
-
-        inLearningProcessEngRu.put(word.getEnWord(), word);
-        inLearningProcessRuEng.put(word.getRuWord(), word);
-
-        allWordBase.add(word);
 
         //Нужно добавить отправку сообщения уведомления
     }
 
     private void addWordFromAllWordMap(String key) {
-        List<Word> wordList = allWordBase.getWordObjects(key);
+        List<Word> wordList = AllWordBase.getWordObjects(key);
         for (Word tempWord : wordList) {
-            inLearningProcessEngRu.put(tempWord.getEnWord(), tempWord);
-            inLearningProcessRuEng.put(tempWord.getRuWord(), tempWord);
+            inLearningProcess.put(tempWord.getEnWord(), tempWord);
+            inLearningProcess.put(tempWord.getRuWord(), tempWord);
+
         }
 
         //Нужно добавить отправку сообщения уведомления
+    }
+
+
+    public boolean isInAddMenu() {
+        return inAddMenyu;
+    }
+
+    public void setInAddMenu(boolean inAddMenu) {
+        this.inAddMenyu = inAddMenu;
+    }
+
+    public Word getInLearningProcess(String key) {
+        return inLearningProcess.get(key);
     }
 }

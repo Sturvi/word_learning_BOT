@@ -15,8 +15,9 @@ public class TranslatorText {
     // Instantiates the OkHttpClient.
     OkHttpClient client = new OkHttpClient();
 
-    // This function performs a POST request.
-    public ArrayList<String> post(String word) throws IOException {
+    /*    This method sends the word to microsoft translate, receives the response, parses it and returns a List of 2 elements.
+        The first element will always be a word in English, the second in Russian */
+    public ArrayList<String> translate(String word) {
         MediaType mediaType = MediaType.parse("application/json");
         RequestBody body = RequestBody.create(mediaType,
                 "[{\"Text\": \"" + word + "\"}]");
@@ -28,23 +29,26 @@ public class TranslatorText {
                 .addHeader("Ocp-Apim-Subscription-Region", location)
                 .addHeader("Content-type", "application/json")
                 .build();
-        Response response = client.newCall(request).execute();
-        String jsonString = response.body().string();
+        Response response;
+        String jsonString;
+
+        try {
+            response = client.newCall(request).execute();
+            jsonString = response.body().string();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
 
         ArrayList<String> result = new ArrayList<>();
-        try {
-            JsonParser jsonParser = new JsonParser();
-            JsonArray jsonArray = jsonParser.parse(jsonString).getAsJsonArray();
-            JsonObject jsonObject = jsonArray.get(0).getAsJsonObject();
 
-            JsonArray translations = jsonObject.get("translations").getAsJsonArray();
-            for (JsonElement translation : translations) {
-                JsonObject translationObject = translation.getAsJsonObject();
-                result.add(translationObject.get("text").getAsString());
-            }
+        JsonParser jsonParser = new JsonParser();
+        JsonArray jsonArray = jsonParser.parse(jsonString).getAsJsonArray();
+        JsonObject jsonObject = jsonArray.get(0).getAsJsonObject();
 
-        } catch (Exception e) {
-            System.out.println(e);
+        JsonArray translations = jsonObject.get("translations").getAsJsonArray();
+        for (JsonElement translation : translations) {
+            JsonObject translationObject = translation.getAsJsonObject();
+            result.add(translationObject.get("text").getAsString());
         }
 
         return result;
