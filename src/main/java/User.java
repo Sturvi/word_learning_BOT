@@ -20,6 +20,15 @@ public class User {
         inRepeatMenu = false;
     }
 
+    public void remove (String keyWord){
+        alreadyLearned.remove(keyWord);
+        inLearningProcess.remove(keyWord);
+    }
+
+    public void fromLeaningToRepeat (String key) {
+
+    }
+
     public void add(String words) {
         String[] wordsArr = words.trim().split(" ");
         for (String tempWord : wordsArr) {
@@ -64,8 +73,6 @@ public class User {
         } else {
             throw new IncorrectMenuSelectionException();
         }
-
-
     }
 
     private void addWordFromTranslator(String inputWord) {
@@ -136,6 +143,6 @@ public class User {
         return inRepeatMenu;
     }
 
-    public class IncorrectMenuSelectionException extends Exception {
+    public static class IncorrectMenuSelectionException extends Exception {
     }
 }

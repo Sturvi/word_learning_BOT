@@ -5,7 +5,9 @@ import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
 import org.telegram.telegrambots.meta.api.objects.InputFile;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardButton;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
@@ -36,9 +38,26 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
 
     /*Оброботка нажаний на клавиши команд*/
     private void handleCallback(CallbackQuery callbackQuery) {
+        Message message = callbackQuery.getMessage();
+        User user = Main.userMap.get(message.getChatId());
+        String data = callbackQuery.getData();
+        String text = callbackQuery.getMessage().getText();
 
+
+        switch (data){
+            case ("delete") -> {
+                String texts [] = text.split(" ");
+                user.remove(texts[0]);
+            }
+            case ("next") -> {
+                if (user.isInLeaningMenu()) {
+                    getLeaningWord(user, message);
+                } else if (user.isInRepeatMenu()) {
+                    getRepeatingWord(user, message);
+                }
+            }
+        }
     }
-
 
     /*Оброботка текстовых команд или в случае, если пользователь присылает слова на добавление в словарь*/
     private void handleTextMessage(Message message) {
@@ -60,35 +79,43 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
             }
             case ("\uD83D\uDC68\uD83C\uDFFB\u200D\uD83C\uDF93 Учить слова") -> {
                 user.setMenu("inLeaningMenu");
-                try {
-                    String wordsForSend = user.getRandomLearningWord();
-                    sendWordWithVoice(wordsForSend, message);
-                } catch (ArrayIndexOutOfBoundsException e) {
-                    sendMessage(message.getChatId(), "У вас нет слов на изучения в данный момент. Пожалуйста, " +
-                            "добавьте новые слова, или воспользуйтесь нашим банком слов.");
-                } catch (User.IncorrectMenuSelectionException e) {
-                    sendMessage(message.getChatId(), "Вы не выбрали меню. Пожалуйста выбери действие которе " +
-                            "необходимо выполнить из списка ниже ⬇");
-                }
+                getLeaningWord(user, message);
             }
             case ("\uD83D\uDD01 Повторять слова") -> {
                 user.setMenu("inRepeatMenu");
-                try {
-                    String wordsForSend = user.getRandomLearningWord();
-                    sendWordWithVoice(wordsForSend, message);
-                } catch (ArrayIndexOutOfBoundsException e) {
-                    sendMessage(message.getChatId(), "У вас нет слов на повторении в данный момент. Пожалуйста, " +
-                            "воспользуйтесь меню \"\uD83D\uDC68\uD83C\uDFFB\u200D\uD83C\uDF93 Учить слова\"");
-                } catch (User.IncorrectMenuSelectionException e) {
-                    sendMessage(message.getChatId(), "Вы не выбрали меню. Пожалуйста выбери действие которе " +
-                            "необходимо выполнить из списка ниже ⬇");
-                }
+                getRepeatingWord(user, message);
             }
             default -> {
                 if (user.isInAddMenu()) {
                     user.add(messageText);
                 }
             }
+        }
+    }
+
+    private void getRepeatingWord (User user, Message message){
+        try {
+            String wordsForSend = user.getRandomLearningWord();
+            sendWordWithVoice(wordsForSend, message);
+        } catch (ArrayIndexOutOfBoundsException e) {
+            sendMessage(message.getChatId(), "У вас нет слов на повторении в данный момент. Пожалуйста, " +
+                    "воспользуйтесь меню \"\uD83D\uDC68\uD83C\uDFFB\u200D\uD83C\uDF93 Учить слова\"");
+        } catch (User.IncorrectMenuSelectionException e) {
+            sendMessage(message.getChatId(), "Вы не выбрали меню. Пожалуйста выбери действие которе " +
+                    "необходимо выполнить из списка ниже ⬇");
+        }
+    }
+
+    private void getLeaningWord (User user, Message message){
+        try {
+            String wordsForSend = user.getRandomLearningWord();
+            sendWordWithVoice(wordsForSend, message);
+        } catch (ArrayIndexOutOfBoundsException e) {
+            sendMessage(message.getChatId(), "У вас нет слов на изучения в данный момент. Пожалуйста, " +
+                    "добавьте новые слова, или воспользуйтесь нашим банком слов.");
+        } catch (User.IncorrectMenuSelectionException e) {
+            sendMessage(message.getChatId(), "Вы не выбрали меню. Пожалуйста выбери действие которе " +
+                    "необходимо выполнить из списка ниже ⬇");
         }
     }
 
@@ -110,7 +137,7 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
         try {
             voice = word.getVoice();
         } catch (Exception e) {
-            sendMessage(message.getChatId(), textForMessage);
+            sendMessage(message.getChatId(), textForMessage, getKeyboard(message.getChatId()));
             return;
         }
 
@@ -125,7 +152,7 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
         } catch (TelegramApiException e) {
             throw new RuntimeException(e);
         }
-        sendMessage(message.getChatId(), textForMessage);
+        sendMessage(message.getChatId(), textForMessage, getKeyboard(message.getChatId()));
     }
 
 
@@ -143,6 +170,22 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
         sendMessage.enableHtml(true);
         try {
             setButtons(sendMessage);
+            execute(sendMessage);
+        } catch (TelegramApiException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void sendMessage(Long chatId, String text, InlineKeyboardMarkup inlineKeyboardMarkup) {
+        SendMessage sendMessage = new SendMessage();
+        sendMessage.enableMarkdown(true);
+        sendMessage.setChatId(chatId.toString());
+        // sendMessage.setReplyToMessageId(message.getMessageId());
+        sendMessage.setText(text);
+        sendMessage.enableHtml(true);
+        sendMessage.setReplyMarkup(inlineKeyboardMarkup);
+        try {
+           // setButtons(sendMessage);
             execute(sendMessage);
         } catch (TelegramApiException e) {
             e.printStackTrace();
@@ -173,6 +216,35 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
         replyKeyboardMarkup.setKeyboard(keyboardRowList);
     }
 
+    private InlineKeyboardMarkup getKeyboard(Long chatId) {
+        List<List<InlineKeyboardButton>> keyboard = new ArrayList<>();
+
+        keyboard.add(new ArrayList<>());
+        keyboard.add(new ArrayList<>());
+
+        InlineKeyboardButton delete = new InlineKeyboardButton("❌ Удалить это слово");
+        delete.setCallbackData("delete");
+        keyboard.get(0).add(delete);
+
+        if (Main.userMap.get(chatId).isInLeaningMenu()){
+            InlineKeyboardButton learned = new InlineKeyboardButton("\uD83E\uDDE0 Уже знаю это слово");
+            learned.setCallbackData("learned");
+            keyboard.get(0).add(learned);
+        } else if (Main.userMap.get(chatId).isInRepeatMenu()) {
+            InlineKeyboardButton forgot = new InlineKeyboardButton("\uD83D\uDC68\uD83C\uDFFB\u200D\uD83C\uDF93 Снова изучать это слово");
+            forgot.setCallbackData("forgot");
+            keyboard.get(0).add(forgot);
+        }
+
+        InlineKeyboardButton next = new InlineKeyboardButton("➡ Слудеющее слово");
+        next.setCallbackData("next");
+        keyboard.get(1).add(next);
+
+        InlineKeyboardMarkup keyboardMarkup = new InlineKeyboardMarkup();
+        keyboardMarkup.setKeyboard(keyboard);
+
+        return keyboardMarkup;
+    }
 
     @Override
     public String getBotUsername() {
