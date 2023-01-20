@@ -9,13 +9,10 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="17fabfc4-ac16-4de8-b079-1c103929943d" name="Changes" comment="0.5.2 Добавлена реализация старта повторяющихся слов. Добавлены комментарии">
-      <change afterPath="$PROJECT_DIR$/.idea/artifacts/word_learning_BOT_jar.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/remote-targets.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/META-INF/MANIFEST.MF" afterDir="false" />
+    <list default="true" id="17fabfc4-ac16-4de8-b079-1c103929943d" name="Changes" comment="0.5.3 работа над кнопками">
+      <change beforePath="$PROJECT_DIR$/.idea/artifacts/word_learning_BOT_jar.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/artifacts/word_learning_BOT_jar.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/TelegramApiConnect.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/TelegramApiConnect.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/User.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/User.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/Word.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/Word.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -84,7 +81,7 @@
       <recent name="" />
     </key>
   </component>
-  <component name="RunManager" selected="Application.Main">
+  <component name="RunManager" selected="Application.SSH">
     <configuration name="Main" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
       <option name="MAIN_CLASS_NAME" value="Main" />
       <module name="word_learning_BOT" />
@@ -121,7 +118,7 @@
       <workItem from="1673855712351" duration="11618000" />
       <workItem from="1673939373142" duration="11077000" />
       <workItem from="1674040888440" duration="16328000" />
-      <workItem from="1674201771225" duration="5176000" />
+      <workItem from="1674201771225" duration="7277000" />
     </task>
     <task id="LOCAL-00001" summary="deleted 2 maps from User class">
       <created>1673945412252</created>
@@ -137,7 +134,14 @@
       <option name="project" value="LOCAL" />
       <updated>1674123774007</updated>
     </task>
-    <option name="localTasksCounter" value="3" />
+    <task id="LOCAL-00003" summary="0.5.3 работа над кнопками">
+      <created>1674207732942</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1674207732942</updated>
+    </task>
+    <option name="localTasksCounter" value="4" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -184,7 +188,8 @@
   <component name="VcsManagerConfiguration">
     <MESSAGE value="deleted 2 maps from User class" />
     <MESSAGE value="0.5.1 перевод текстов переведен в класс Word" />
-    <option name="LAST_COMMIT_MESSAGE" value="0.5.1 перевод текстов переведен в класс Word" />
+    <MESSAGE value="0.5.3 работа над кнопками" />
+    <option name="LAST_COMMIT_MESSAGE" value="0.5.3 работа над кнопками" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -195,9 +200,9 @@
           <option name="timeStamp" value="23" />
         </line-breakpoint>
         <line-breakpoint enabled="true" type="java-line">
-          <url>file://$PROJECT_DIR$/src/main/java/TelegramApiConnect.java</url>
-          <line>42</line>
-          <option name="timeStamp" value="25" />
+          <url>file://$PROJECT_DIR$/src/main/java/Word.java</url>
+          <line>61</line>
+          <option name="timeStamp" value="28" />
         </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>

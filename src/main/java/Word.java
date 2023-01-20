@@ -62,28 +62,36 @@ public class Word {
         String subscriptionKey = "e2c7953181e04a5cb85981e5a309d7f4";
         String serviceRegion = "germanywestcentral";
 
-        SpeechConfig speechConfig = SpeechConfig.fromSubscription(subscriptionKey, serviceRegion);
+        try{
 
-        speechConfig.setSpeechSynthesisVoiceName("en-US-JennyNeural");
+            SpeechConfig speechConfig = SpeechConfig.fromSubscription(subscriptionKey, serviceRegion);
 
-        SpeechSynthesizer speechSynthesizer = new SpeechSynthesizer(speechConfig);
+            speechConfig.setSpeechSynthesisVoiceName("en-US-JennyNeural");
 
-        if (text.isEmpty()) {
-            return;
-        }
+            SpeechSynthesizer speechSynthesizer = new SpeechSynthesizer(speechConfig);
 
-        // Get the synthesized speech as an audio stream
-        SpeechSynthesisResult result = speechSynthesizer.SpeakText(text);
+            if (text.isEmpty()) {
+                return;
+            }
 
-        if (result.getAudioData() != null) {
-            try (FileOutputStream fos = new FileOutputStream(voice)) {
+            // Get the synthesized speech as an audio stream
+            SpeechSynthesisResult result = speechSynthesizer.SpeakText(text);
+
+            System.out.println("text :"+text);
+            System.out.println("result.id :"+result.getResultId()+", result.resultReason : "+result.getReason()
+                    + ", result.audioDuration : "+result.getAudioDuration()+", result.audioLength : "+result.getAudioLength());
+
+            if (result.getAudioData() != null) {
+                FileOutputStream fos = new FileOutputStream(voice);
                 fos.write(result.getAudioData());
                 System.out.println("Audio data written to file: output.wav");
-            } catch (IOException ex) {
-                System.out.println("Error writing audio data to file: " + ex.getMessage());
+
+            } else {
+                System.out.println("Error getting audio data: ");
             }
-        } else {
-            System.out.println("Error getting audio data: ");
+        }catch(Exception e){
+            e.printStackTrace();
+            throw e;
         }
     }
 
