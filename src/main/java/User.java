@@ -38,6 +38,14 @@ public class User {
         inRepeatingProcess.remove(key);
     }
 
+    public boolean inLeaningProcessContainsKey (String key){
+        return inLeaningProcess.containsKey(key);
+    }
+
+    public boolean inRepeatingProcessContainsKey (String key){
+        return inRepeatingProcess.containsKey(key);
+    }
+
     public String add(String word) {
         if (word.length() > 1 || word.equalsIgnoreCase("i")) {
             if (!checkInUserMaps(word)) {
