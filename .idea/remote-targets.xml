@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="RemoteTargetsManager">
+    <targets>
+      <target name="root@212.227.210.51:22" type="ssh/sftp" uuid="836033bb-b092-4528-8a90-2c634d806583">
+        <config>
+          <option name="projectRootOnTarget" value="/root/word_learning_BOT" />
+          <option name="serverName" value="root@212.227.210.51:22 password" />
+        </config>
+        <ContributedStateBase type="JavaLanguageRuntime">
+          <config>
+            <option name="javaVersionString" value="19.0.1" />
+          </config>
+        </ContributedStateBase>
+      </target>
+    </targets>
+  </component>
+</project>
