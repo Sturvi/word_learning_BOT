@@ -9,10 +9,10 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="17fabfc4-ac16-4de8-b079-1c103929943d" name="Changes" comment="0.5.3 работа над кнопками">
-      <change beforePath="$PROJECT_DIR$/.idea/artifacts/word_learning_BOT_jar.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/artifacts/word_learning_BOT_jar.xml" afterDir="false" />
+    <list default="true" id="17fabfc4-ac16-4de8-b079-1c103929943d" name="Changes" comment="0.5.4 работа tts">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/Word.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/Word.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/TelegramApiConnect.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/TelegramApiConnect.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/User.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/User.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -73,6 +73,7 @@
     &quot;project.structure.last.edited&quot;: &quot;Artifacts&quot;,
     &quot;project.structure.proportion&quot;: &quot;0.16503906&quot;,
     &quot;project.structure.side.proportion&quot;: &quot;0.43559718&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;preferences.pluginManager&quot;,
     &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   }
 }</component>
@@ -81,7 +82,7 @@
       <recent name="" />
     </key>
   </component>
-  <component name="RunManager" selected="Application.SSH">
+  <component name="RunManager" selected="Application.Main">
     <configuration name="Main" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
       <option name="MAIN_CLASS_NAME" value="Main" />
       <module name="word_learning_BOT" />
@@ -118,7 +119,8 @@
       <workItem from="1673855712351" duration="11618000" />
       <workItem from="1673939373142" duration="11077000" />
       <workItem from="1674040888440" duration="16328000" />
-      <workItem from="1674201771225" duration="7277000" />
+      <workItem from="1674201771225" duration="14498000" />
+      <workItem from="1674217727730" duration="2467000" />
     </task>
     <task id="LOCAL-00001" summary="deleted 2 maps from User class">
       <created>1673945412252</created>
@@ -141,7 +143,14 @@
       <option name="project" value="LOCAL" />
       <updated>1674207732942</updated>
     </task>
-    <option name="localTasksCounter" value="4" />
+    <task id="LOCAL-00004" summary="0.5.4 работа tts">
+      <created>1674210024930</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1674210024930</updated>
+    </task>
+    <option name="localTasksCounter" value="5" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -189,20 +198,36 @@
     <MESSAGE value="deleted 2 maps from User class" />
     <MESSAGE value="0.5.1 перевод текстов переведен в класс Word" />
     <MESSAGE value="0.5.3 работа над кнопками" />
-    <option name="LAST_COMMIT_MESSAGE" value="0.5.3 работа над кнопками" />
+    <MESSAGE value="0.5.4 работа tts" />
+    <option name="LAST_COMMIT_MESSAGE" value="0.5.4 работа tts" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
       <breakpoints>
         <line-breakpoint enabled="true" type="java-line">
-          <url>file://$PROJECT_DIR$/src/main/java/TelegramApiConnect.java</url>
-          <line>135</line>
-          <option name="timeStamp" value="23" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" type="java-line">
           <url>file://$PROJECT_DIR$/src/main/java/Word.java</url>
           <line>61</line>
           <option name="timeStamp" value="28" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="java-line">
+          <url>jar://$MAVEN_REPOSITORY$/com/microsoft/cognitiveservices/speech/client-sdk/1.24.2/client-sdk-1.24.2-sources.jar!/com/microsoft/cognitiveservices/speech/audio/AudioConfig.java</url>
+          <line>162</line>
+          <option name="timeStamp" value="29" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="java-line">
+          <url>file://$PROJECT_DIR$/src/main/java/Word.java</url>
+          <line>70</line>
+          <option name="timeStamp" value="30" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="java-line">
+          <url>file://$PROJECT_DIR$/src/main/java/TelegramApiConnect.java</url>
+          <line>91</line>
+          <option name="timeStamp" value="39" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="java-line">
+          <url>file://$PROJECT_DIR$/src/main/java/TelegramApiConnect.java</url>
+          <line>74</line>
+          <option name="timeStamp" value="40" />
         </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>

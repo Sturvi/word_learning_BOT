@@ -44,10 +44,10 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
         String text = callbackQuery.getMessage().getText();
 
 
-        switch (data){
+        switch (data) {
             case ("delete") -> {
-                String texts [] = text.split(" ");
-                user.remove(texts[0]);
+                String[] texts = text.split(" - ");
+                user.remove(texts[0].trim());
             }
             case ("next") -> {
                 if (user.isInLeaningMenu()) {
@@ -55,6 +55,14 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
                 } else if (user.isInRepeatMenu()) {
                     getRepeatingWord(user, message);
                 }
+            }
+            case ("learned") -> {
+                String[] texts = text.split(" - ");
+                user.fromLeaningToRepeat(texts[0].trim());
+            }
+            case ("forgot") -> {
+                String[] texts = text.split(" - ");
+                user.fromRepeatToLeaning(texts[0].trim());
             }
         }
     }
@@ -66,13 +74,13 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
 
         switch (messageText) {
             case ("/start") -> {
-                sendMessage(message.getChatId(), "Добро пожаловать в наш бот по изучению английских слов.");
+                sendMessage(message, "Добро пожаловать в наш бот по изучению английских слов.");
                 help(message);
             }
             case ("\uD83D\uDDD2 Добавить слова") -> {
                 user.setMenu("inAddMenu");
-                sendMessage(message.getChatId(), "Можете отправлять слова, которые хотите добавить в свою коллекию " +
-                        "\n\n Можете отправлять много слов, разделенных пробелами или в разных сообщениях" +
+                sendMessage(message, "Можете отправлять слова, которые хотите добавить в свою коллекию " +
+                        "\n\n Можете отправлять также словосочетания" +
                         "\n\nУчтите, что слова переводятся автоматически, с помощью сервисов онлайн перевода и " +
                         "никак не проходят дополнительные провекрки орфографии. Поэтому даже при небольших ошибка, " +
                         "перевод также будет ошибочный.");
@@ -87,34 +95,36 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
             }
             default -> {
                 if (user.isInAddMenu()) {
-                    user.add(messageText);
+                    for (String textForSend : user.add(messageText)) {
+                        sendMessage(message, textForSend, true);
+                    }
                 }
             }
         }
     }
 
-    private void getRepeatingWord (User user, Message message){
+    private void getRepeatingWord(User user, Message message) {
         try {
             String wordsForSend = user.getRandomLearningWord();
             sendWordWithVoice(wordsForSend, message);
         } catch (ArrayIndexOutOfBoundsException e) {
-            sendMessage(message.getChatId(), "У вас нет слов на повторении в данный момент. Пожалуйста, " +
+            sendMessage(message, "У вас нет слов на повторении в данный момент. Пожалуйста, " +
                     "воспользуйтесь меню \"\uD83D\uDC68\uD83C\uDFFB\u200D\uD83C\uDF93 Учить слова\"");
         } catch (User.IncorrectMenuSelectionException e) {
-            sendMessage(message.getChatId(), "Вы не выбрали меню. Пожалуйста выбери действие которе " +
+            sendMessage(message, "Вы не выбрали меню. Пожалуйста выбери действие которе " +
                     "необходимо выполнить из списка ниже ⬇");
         }
     }
 
-    private void getLeaningWord (User user, Message message){
+    private void getLeaningWord(User user, Message message) {
         try {
             String wordsForSend = user.getRandomLearningWord();
             sendWordWithVoice(wordsForSend, message);
         } catch (ArrayIndexOutOfBoundsException e) {
-            sendMessage(message.getChatId(), "У вас нет слов на изучения в данный момент. Пожалуйста, " +
+            sendMessage(message, "У вас нет слов на изучения в данный момент. Пожалуйста, " +
                     "добавьте новые слова, или воспользуйтесь нашим банком слов.");
         } catch (User.IncorrectMenuSelectionException e) {
-            sendMessage(message.getChatId(), "Вы не выбрали меню. Пожалуйста выбери действие которе " +
+            sendMessage(message, "Вы не выбрали меню. Пожалуйста выбери действие которе " +
                     "необходимо выполнить из списка ниже ⬇");
         }
     }
@@ -123,21 +133,26 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
     отправляет просто слово*/
     private void sendWordWithVoice(String key, Message message) {
         User user = Main.userMap.get(message.getChatId());
-        Word word = user.getInLearningProcess(key);
+        Word word;
+        if (user.isInLeaningMenu()){
+           word  = user.getInLearningProcess(key);
+        } else {
+            word  = user.getInRepeatingProcess(key);
+        }
 
         String textForMessage;
 
         if (word.getEnWord().equals(key)) {
-            textForMessage = key + "   <span class='tg-spoiler'>   " + word.getRuWord() + "   </span>";
+            textForMessage = key + " -  <span class='tg-spoiler'>   " + word.getRuWord() + "   </span>";
         } else {
-            textForMessage = word.getRuWord() + "   <span class='tg-spoiler'>   " + word.getEnWord() + "   </span>";
+            textForMessage = word.getRuWord() + " -  <span class='tg-spoiler'>   " + word.getEnWord() + "   </span>";
         }
 
         File voice;
         try {
             voice = word.getVoice();
         } catch (Exception e) {
-            sendMessage(message.getChatId(), textForMessage, getKeyboard(message.getChatId()));
+            sendMessage(message, textForMessage, getKeyboard(message.getChatId()));
             return;
         }
 
@@ -152,7 +167,7 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
         } catch (TelegramApiException e) {
             throw new RuntimeException(e);
         }
-        sendMessage(message.getChatId(), textForMessage, getKeyboard(message.getChatId()));
+        sendMessage(message, textForMessage, getKeyboard(message.getChatId()));
     }
 
 
@@ -161,31 +176,36 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
     }
 
     /*Отправка обычных тектовых сообщений. Принимает Long chatId и текст сообщения*/
-    public void sendMessage(Long chatId, String text) {
-        SendMessage sendMessage = new SendMessage();
-        sendMessage.enableMarkdown(true);
-        sendMessage.setChatId(chatId.toString());
-        // sendMessage.setReplyToMessageId(message.getMessageId());
-        sendMessage.setText(text);
-        sendMessage.enableHtml(true);
-        try {
-            setButtons(sendMessage);
-            execute(sendMessage);
-        } catch (TelegramApiException e) {
-            e.printStackTrace();
-        }
+    public void sendMessage(Message message, String text) {
+        sendMessage(message, text, false);
     }
 
-    public void sendMessage(Long chatId, String text, InlineKeyboardMarkup inlineKeyboardMarkup) {
+    public void sendMessage(Message message, String text, InlineKeyboardMarkup inlineKeyboardMarkup) {
         SendMessage sendMessage = new SendMessage();
-        sendMessage.enableMarkdown(true);
-        sendMessage.setChatId(chatId.toString());
-        // sendMessage.setReplyToMessageId(message.getMessageId());
+        sendMessage.setChatId(message.getChatId());
         sendMessage.setText(text);
-        sendMessage.enableHtml(true);
         sendMessage.setReplyMarkup(inlineKeyboardMarkup);
+
+        sendMsg(sendMessage);
+    }
+
+    public void sendMessage(Message message, String text, boolean setReplyToMessageId) {
+        SendMessage sendMessage = new SendMessage();
+        sendMessage.setText(text);
+        sendMessage.setChatId(message.getChatId());
+
+        if (setReplyToMessageId) {
+            sendMessage.setReplyToMessageId(message.getMessageId());
+        }
+
+        setButtons(sendMessage);
+        sendMsg(sendMessage);
+    }
+
+    private void sendMsg(SendMessage sendMessage) {
+        sendMessage.enableMarkdown(true);
+        sendMessage.enableHtml(true);
         try {
-           // setButtons(sendMessage);
             execute(sendMessage);
         } catch (TelegramApiException e) {
             e.printStackTrace();
@@ -226,7 +246,7 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
         delete.setCallbackData("delete");
         keyboard.get(0).add(delete);
 
-        if (Main.userMap.get(chatId).isInLeaningMenu()){
+        if (Main.userMap.get(chatId).isInLeaningMenu()) {
             InlineKeyboardButton learned = new InlineKeyboardButton("\uD83E\uDDE0 Уже знаю это слово");
             learned.setCallbackData("learned");
             keyboard.get(0).add(learned);
