@@ -67,7 +67,7 @@ public class User {
             if (keysArr.length == 0) {
                 throw new ArrayIndexOutOfBoundsException();
             }
-            int random = (int) (Math.random() * keysArr.length - 1);
+            int random = (int) (Math.random() * keysArr.length);
 
             return keysArr[random];
         } else if (inRepeatMenu) {
@@ -75,7 +75,7 @@ public class User {
             if (keysArr.length == 0) {
                 throw new ArrayIndexOutOfBoundsException();
             }
-            int random = (int) (Math.random() * keysArr.length - 1);
+            int random = (int) (Math.random() * keysArr.length);
 
             return keysArr[random];
         } else {
