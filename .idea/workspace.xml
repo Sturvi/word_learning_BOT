@@ -9,7 +9,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="17fabfc4-ac16-4de8-b079-1c103929943d" name="Changes" comment="0.5.4 работа tts">
+    <list default="true" id="17fabfc4-ac16-4de8-b079-1c103929943d" name="Changes" comment="0.5.5 Доработаны кнопки. Исправлены баги">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/TelegramApiConnect.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/TelegramApiConnect.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/User.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/User.java" afterDir="false" />
@@ -42,7 +42,7 @@
     </favorite-branches>
     <option name="RECENT_BRANCH_BY_REPOSITORY">
       <map>
-        <entry key="$PROJECT_DIR$" value="0.5_+" />
+        <entry key="$PROJECT_DIR$" value="0.5_+_testing_for_delete_Traslator_text_class" />
       </map>
     </option>
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
@@ -121,6 +121,7 @@
       <workItem from="1674040888440" duration="16328000" />
       <workItem from="1674201771225" duration="14498000" />
       <workItem from="1674217727730" duration="2467000" />
+      <workItem from="1674221517982" duration="313000" />
     </task>
     <task id="LOCAL-00001" summary="deleted 2 maps from User class">
       <created>1673945412252</created>
@@ -167,7 +168,7 @@
                   <entry key="branch">
                     <value>
                       <list>
-                        <option value="main" />
+                        <option value="0.5_+_testing_for_delete_Traslator_text_class" />
                       </list>
                     </value>
                   </entry>
@@ -205,29 +206,14 @@
     <breakpoint-manager>
       <breakpoints>
         <line-breakpoint enabled="true" type="java-line">
-          <url>file://$PROJECT_DIR$/src/main/java/Word.java</url>
-          <line>61</line>
-          <option name="timeStamp" value="28" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" type="java-line">
           <url>jar://$MAVEN_REPOSITORY$/com/microsoft/cognitiveservices/speech/client-sdk/1.24.2/client-sdk-1.24.2-sources.jar!/com/microsoft/cognitiveservices/speech/audio/AudioConfig.java</url>
           <line>162</line>
           <option name="timeStamp" value="29" />
         </line-breakpoint>
         <line-breakpoint enabled="true" type="java-line">
-          <url>file://$PROJECT_DIR$/src/main/java/Word.java</url>
-          <line>70</line>
-          <option name="timeStamp" value="30" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" type="java-line">
-          <url>file://$PROJECT_DIR$/src/main/java/TelegramApiConnect.java</url>
-          <line>91</line>
-          <option name="timeStamp" value="39" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" type="java-line">
-          <url>file://$PROJECT_DIR$/src/main/java/TelegramApiConnect.java</url>
-          <line>74</line>
-          <option name="timeStamp" value="40" />
+          <url>file://$PROJECT_DIR$/src/main/java/User.java</url>
+          <line>47</line>
+          <option name="timeStamp" value="49" />
         </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>

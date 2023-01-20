@@ -95,9 +95,7 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
             }
             default -> {
                 if (user.isInAddMenu()) {
-                    for (String textForSend : user.add(messageText)) {
-                        sendMessage(message, textForSend, true);
-                    }
+                    sendMessage(message, user.add(messageText), true);
                 }
             }
         }
@@ -134,10 +132,10 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
     private void sendWordWithVoice(String key, Message message) {
         User user = Main.userMap.get(message.getChatId());
         Word word;
-        if (user.isInLeaningMenu()){
-           word  = user.getInLearningProcess(key);
+        if (user.isInLeaningMenu()) {
+            word = user.getInLearningProcess(key);
         } else {
-            word  = user.getInRepeatingProcess(key);
+            word = user.getInRepeatingProcess(key);
         }
 
         String textForMessage;

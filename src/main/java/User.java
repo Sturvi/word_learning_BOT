@@ -38,27 +38,22 @@ public class User {
         inRepeatingProcess.remove(key);
     }
 
-    public List<String> add(String words) {
-        String[] wordsArr = words.trim().split(" ");
-        List<String> returnedMessages = new ArrayList<>();
-        for (String tempWord : wordsArr) {
-            if (tempWord.length() > 1 || tempWord.equalsIgnoreCase("i")) {
-                if (!checkInUserMaps(tempWord)) {
-                    if (AllWordBase.check(tempWord)) {
-                        addWordFromAllWordMap(tempWord);
-                    } else {
-                        addWordFromTranslator(tempWord);
-                    }
-                    returnedMessages.add("Слово успешно добавлено в твой словарь");
+    public String add(String word) {
+        if (word.length() > 1 || word.equalsIgnoreCase("i")) {
+            if (!checkInUserMaps(word)) {
+                if (AllWordBase.check(word)) {
+                    addWordFromAllWordMap(word);
                 } else {
-                    //Отправить сообщение, что слово уже есть в твоем словаре
-                    returnedMessages.add("Данное слово находится в вашем словаре") ;
+                    addWordFromTranslator(word);
                 }
+                return "Слово (или словосочетание) успешно добавлено в твой словарь";
             } else {
-                returnedMessages.add("Слово должно состоять из 2 и более букв");
+                //Отправить сообщение, что слово уже есть в твоем словаре
+                return  "Данное слово находится в вашем словаре";
             }
+        } else {
+            return  "Слово должно состоять из 2 и более букв";
         }
-        return returnedMessages;
     }
 
     private boolean checkInUserMaps(String tempWord) {
@@ -159,6 +154,6 @@ public class User {
         return inRepeatMenu;
     }
 
-    public static class IncorrectMenuSelectionException extends Exception {
-    }
+public static class IncorrectMenuSelectionException extends Exception {
+}
 }
