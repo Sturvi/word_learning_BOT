@@ -1,6 +1,9 @@
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.send.SendAudio;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageCaption;
+import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageReplyMarkup;
+import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
 import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
 import org.telegram.telegrambots.meta.api.objects.InputFile;
 import org.telegram.telegrambots.meta.api.objects.Message;
@@ -48,6 +51,7 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
             case ("delete") -> {
                 String[] texts = text.split(" - ");
                 user.remove(texts[0].trim());
+                editKeyboardAfterDeleteMessage(callbackQuery);
             }
             case ("next") -> {
                 if (user.isInLeaningMenu()) {
@@ -59,11 +63,59 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
             case ("learned") -> {
                 String[] texts = text.split(" - ");
                 user.fromLeaningToRepeat(texts[0].trim());
+                editKeyboardAfterLeanedOrForgot(callbackQuery);
             }
             case ("forgot") -> {
                 String[] texts = text.split(" - ");
                 user.fromRepeatToLeaning(texts[0].trim());
+                editKeyboardAfterLeanedOrForgot(callbackQuery);
             }
+        }
+    }
+
+    private void editKeyboardAfterLeanedOrForgot(CallbackQuery callbackQuery) {
+        Message message = callbackQuery.getMessage();
+        EditMessageReplyMarkup editMessageReplyMarkup = new EditMessageReplyMarkup();
+        editMessageReplyMarkup.setChatId(message.getChatId());
+        editMessageReplyMarkup.setMessageId(message.getMessageId());
+
+        InlineKeyboardMarkup keyboard = getKeyboard(message.getChatId());
+
+        String[] texts = message.getText().split(" - ");
+
+        if (Main.userMap.get(message.getChatId()).inRepeatingProcessContainsKey(texts[0])) {
+            InlineKeyboardButton forgot = new InlineKeyboardButton("\uD83D\uDC68\uD83C\uDFFB\u200D\uD83C\uDF93 Снова изучать это слово");
+            forgot.setCallbackData("forgot");
+            keyboard.getKeyboard().get(0).set(1, forgot);
+        } else if (Main.userMap.get(message.getChatId()).inLeaningProcessContainsKey(texts[0])) {
+            InlineKeyboardButton learned = new InlineKeyboardButton("\uD83E\uDDE0 Уже знаю это слово");
+            learned.setCallbackData("learned");
+            keyboard.getKeyboard().get(0).set(1, learned);
+        }
+
+        editMessageReplyMarkup.setReplyMarkup(keyboard);
+
+        try {
+            execute(editMessageReplyMarkup);
+        } catch (TelegramApiException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private void editKeyboardAfterDeleteMessage(CallbackQuery callbackQuery) {
+        Message message = callbackQuery.getMessage();
+        String[] text = message.getText().split(" - ");
+
+        EditMessageText editMessageText = new EditMessageText();
+        editMessageText.setMessageId(message.getMessageId());
+        editMessageText.setChatId(message.getChatId());
+        editMessageText.setText("Слово " + text[0] + " удалено из вашего словаря");
+        editMessageText.setReplyMarkup(getKeyboard(message.getChatId(), false));
+
+        try {
+            execute(editMessageText);
+        } catch (TelegramApiException e) {
+            throw new RuntimeException(e);
         }
     }
 
@@ -235,23 +287,29 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
     }
 
     private InlineKeyboardMarkup getKeyboard(Long chatId) {
+        return getKeyboard(chatId, true);
+    }
+
+    private InlineKeyboardMarkup getKeyboard(Long chatId, boolean deleteFirstLine) {
         List<List<InlineKeyboardButton>> keyboard = new ArrayList<>();
 
         keyboard.add(new ArrayList<>());
         keyboard.add(new ArrayList<>());
 
-        InlineKeyboardButton delete = new InlineKeyboardButton("❌ Удалить это слово");
-        delete.setCallbackData("delete");
-        keyboard.get(0).add(delete);
+        if (deleteFirstLine) {
+            InlineKeyboardButton delete = new InlineKeyboardButton("❌ Удалить это слово");
+            delete.setCallbackData("delete");
+            keyboard.get(0).add(delete);
 
-        if (Main.userMap.get(chatId).isInLeaningMenu()) {
-            InlineKeyboardButton learned = new InlineKeyboardButton("\uD83E\uDDE0 Уже знаю это слово");
-            learned.setCallbackData("learned");
-            keyboard.get(0).add(learned);
-        } else if (Main.userMap.get(chatId).isInRepeatMenu()) {
-            InlineKeyboardButton forgot = new InlineKeyboardButton("\uD83D\uDC68\uD83C\uDFFB\u200D\uD83C\uDF93 Снова изучать это слово");
-            forgot.setCallbackData("forgot");
-            keyboard.get(0).add(forgot);
+            if (Main.userMap.get(chatId).isInLeaningMenu()) {
+                InlineKeyboardButton learned = new InlineKeyboardButton("\uD83E\uDDE0 Уже знаю это слово");
+                learned.setCallbackData("learned");
+                keyboard.get(0).add(learned);
+            } else if (Main.userMap.get(chatId).isInRepeatMenu()) {
+                InlineKeyboardButton forgot = new InlineKeyboardButton("\uD83D\uDC68\uD83C\uDFFB\u200D\uD83C\uDF93 Снова изучать это слово");
+                forgot.setCallbackData("forgot");
+                keyboard.get(0).add(forgot);
+            }
         }
 
         InlineKeyboardButton next = new InlineKeyboardButton("➡ Слудеющее слово");
