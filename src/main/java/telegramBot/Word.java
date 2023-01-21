@@ -11,7 +11,7 @@ import java.io.*;
 import java.util.ArrayList;
 import java.util.Objects;
 
-public class Word {
+public class Word implements Serializable {
 
     private final String enWord;
     private final String ruWord;

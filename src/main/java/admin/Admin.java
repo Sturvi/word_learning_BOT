@@ -17,10 +17,11 @@ import telegramBot.Main;
 import telegramBot.TelegramApiConnect;
 import telegramBot.Word;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
-public class Admin {
+public class Admin  implements Serializable {
     private final Long chatID;
     private final String userName;
 

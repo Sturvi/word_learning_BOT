@@ -9,12 +9,17 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="17fabfc4-ac16-4de8-b079-1c103929943d" name="Changes" comment="0.8 Админ Панель полностью рабочая">
+    <list default="true" id="17fabfc4-ac16-4de8-b079-1c103929943d" name="Changes" comment="0.8.1 удален раздел помощь Добавлен раздел Статистика для пользователей">
+      <change afterPath="$PROJECT_DIR$/ENRUS.TXT" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/java/telegramBot/Backup.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/encodings.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/encodings.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/admin/Admin.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/admin/Admin.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/admin/AdminsData.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/admin/AdminsData.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/telegramBot/AllWordBase.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/telegramBot/AllWordBase.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/telegramBot/TelegramApiConnect.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/telegramBot/TelegramApiConnect.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/telegramBot/Main.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/telegramBot/Main.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/telegramBot/User.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/telegramBot/User.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/telegramBot/Word.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/telegramBot/Word.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -76,25 +81,31 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;SHARE_PROJECT_CONFIGURATION_FILES&quot;: &quot;true&quot;,
-    &quot;WebServerToolWindowFactoryState&quot;: &quot;false&quot;,
-    &quot;last_opened_file_path&quot;: &quot;C:/Users/Azerqutu/Documents/GitHub/AznConverterBot&quot;,
-    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
-    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
-    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
-    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
-    &quot;project.structure.last.edited&quot;: &quot;Artifacts&quot;,
-    &quot;project.structure.proportion&quot;: &quot;0.16503906&quot;,
-    &quot;project.structure.side.proportion&quot;: &quot;0.43559718&quot;,
-    &quot;settings.editor.selected.configurable&quot;: &quot;preferences.pluginManager&quot;,
-    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "RunOnceActivity.OpenProjectViewOnStart": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "SHARE_PROJECT_CONFIGURATION_FILES": "true",
+    "WebServerToolWindowFactoryState": "false",
+    "last_opened_file_path": "C:/Users/Azerqutu/Documents/GitHub/WeatherBot2",
+    "node.js.detected.package.eslint": "true",
+    "node.js.detected.package.tslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.tslint": "(autodetect)",
+    "project.structure.last.edited": "Artifacts",
+    "project.structure.proportion": "0.16503906",
+    "project.structure.side.proportion": "0.43559718",
+    "settings.editor.selected.configurable": "preferences.pluginManager",
+    "vue.rearranger.settings.migration": "true"
   }
-}</component>
+}]]></component>
   <component name="RecentsManager">
+    <key name="CopyFile.RECENT_KEYS">
+      <recent name="C:\Users\Azerqutu\Documents\GitHub\word_learning_BOT" />
+    </key>
+    <key name="MoveFile.RECENT_KEYS">
+      <recent name="C:\Users\Azerqutu\Documents\GitHub\word_learning_BOT" />
+    </key>
     <key name="MoveClassesOrPackagesDialog.RECENTS_KEY">
       <recent name="" />
     </key>
@@ -175,7 +186,14 @@
       <option name="project" value="LOCAL" />
       <updated>1674292602307</updated>
     </task>
-    <option name="localTasksCounter" value="6" />
+    <task id="LOCAL-00006" summary="0.8.1 удален раздел помощь Добавлен раздел Статистика для пользователей">
+      <created>1674298020712</created>
+      <option name="number" value="00006" />
+      <option name="presentableId" value="LOCAL-00006" />
+      <option name="project" value="LOCAL" />
+      <updated>1674298020712</updated>
+    </task>
+    <option name="localTasksCounter" value="7" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -192,7 +210,7 @@
                   <entry key="branch">
                     <value>
                       <list>
-                        <option value="origin/main" />
+                        <option value="HEAD" />
                       </list>
                     </value>
                   </entry>
@@ -225,7 +243,8 @@
     <MESSAGE value="0.5.3 работа над кнопками" />
     <MESSAGE value="0.5.4 работа tts" />
     <MESSAGE value="0.8 Админ Панель полностью рабочая" />
-    <option name="LAST_COMMIT_MESSAGE" value="0.8 Админ Панель полностью рабочая" />
+    <MESSAGE value="0.8.1 удален раздел помощь Добавлен раздел Статистика для пользователей" />
+    <option name="LAST_COMMIT_MESSAGE" value="0.8.1 удален раздел помощь Добавлен раздел Статистика для пользователей" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>

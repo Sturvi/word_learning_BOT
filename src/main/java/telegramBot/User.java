@@ -1,10 +1,11 @@
 package telegramBot;
 
+import java.io.Serializable;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class User {
+public class User  implements Serializable {
     private static final String API_KEY = "AIzaSyAbzEWfx3-YaA4NstSglQztTzpSGSDkmgA";
 
     private final Map<String, Word> inLeaningProcess;
@@ -47,8 +48,8 @@ public class User {
 
     public String add(String word) {
         if (word.length() > 1 || word.equalsIgnoreCase("i")) {
-            if (!checkInUserMaps(word)) {
-                if (AllWordBase.check(word)) {
+            if (!checkInUserMaps(word.toLowerCase())) {
+                if (AllWordBase.check(word.toLowerCase())) {
                     addWordFromAllWordMap(word);
                 } else {
                     addWordFromTranslator(word);
