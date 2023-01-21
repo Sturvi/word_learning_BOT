@@ -22,7 +22,7 @@ public class User {
         inRepeatMenu = false;
     }
 
-    public void remove(String keyWord) {
+    public void removeWord(String keyWord) {
         inRepeatingProcess.remove(keyWord);
         inLeaningProcess.remove(keyWord);
     }
@@ -37,12 +37,12 @@ public class User {
         inRepeatingProcess.remove(key);
     }
 
-    public boolean inLeaningProcessContainsKey (String key){
-        return inLeaningProcess.containsKey(key);
+    public boolean inLeaningProcessContainsKey(String key) {
+        return inLeaningProcess.containsKey(key.toLowerCase());
     }
 
-    public boolean inRepeatingProcessContainsKey (String key){
-        return inRepeatingProcess.containsKey(key);
+    public boolean inRepeatingProcessContainsKey(String key) {
+        return inRepeatingProcess.containsKey(key.toLowerCase());
     }
 
     public String add(String word) {
@@ -56,16 +56,42 @@ public class User {
                 return "Слово (или словосочетание) успешно добавлено в твой словарь";
             } else {
                 //Отправить сообщение, что слово уже есть в твоем словаре
-                return  "Данное слово находится в вашем словаре";
+                return "Данное слово находится в вашем словаре";
             }
         } else {
-            return  "Слово должно состоять из 2 и более букв";
+            return "Слово должно состоять из 2 и более букв";
+        }
+    }
+
+    public void add50Words() {
+        String[] wordKeys = AllWordBase.getKeySet();
+
+
+        for (int count = wordKeys.length >= 50 ? 50 : 50 - wordKeys.length; count < 50; count++) {
+            int handingCount = 0;
+            while (true) {
+                int randomWord = (int) (Math.random() * wordKeys.length);
+                if (wordKeys[randomWord] != null && !checkInUserMaps(wordKeys[randomWord].toLowerCase())) {
+                    addWordFromAllWordMap(wordKeys[randomWord].toLowerCase());
+                    wordKeys[randomWord] = null;
+                    break;
+                }
+
+                if (handingCount == 50) {
+                    break;
+                } else {
+                    handingCount++;
+                }
+            }
+            if (handingCount == 51) {
+                break;
+            }
         }
     }
 
     private boolean checkInUserMaps(String tempWord) {
-        return inLeaningProcess.containsKey(tempWord)
-                || inRepeatingProcess.containsKey(tempWord);
+        return inLeaningProcess.containsKey(tempWord.toLowerCase())
+                || inRepeatingProcess.containsKey(tempWord.toLowerCase());
     }
 
     public String getRandomLearningWord() throws ArrayIndexOutOfBoundsException, IncorrectMenuSelectionException {
@@ -97,8 +123,8 @@ public class User {
         var word = new Word(translatedWord.get(0), translatedWord.get(1));
 
         if (!translatedWord.get(0).equals(translatedWord.get(1))) {
-            inLeaningProcess.put(word.getEnWord(), word);
-            inLeaningProcess.put(word.getRuWord(), word);
+            inLeaningProcess.put(word.getEnWord().toLowerCase(), word);
+            inLeaningProcess.put(word.getRuWord().toLowerCase(), word);
 
             admin.AdminsData.addWord(word);
         }
@@ -107,10 +133,10 @@ public class User {
     }
 
     private void addWordFromAllWordMap(String key) {
-        List<Word> wordList = AllWordBase.getWordObjects(key);
+        List<Word> wordList = AllWordBase.getWordObjects(key.toLowerCase());
         for (Word tempWord : wordList) {
-            inLeaningProcess.put(tempWord.getEnWord(), tempWord);
-            inLeaningProcess.put(tempWord.getRuWord(), tempWord);
+            inLeaningProcess.put(tempWord.getEnWord().toLowerCase(), tempWord);
+            inLeaningProcess.put(tempWord.getRuWord().toLowerCase(), tempWord);
         }
 
         //Нужно добавить отправку сообщения уведомления
@@ -145,11 +171,11 @@ public class User {
     }
 
     public Word getInLearningProcess(String key) {
-        return inLeaningProcess.get(key);
+        return inLeaningProcess.get(key.toLowerCase());
     }
 
     public Word getInRepeatingProcess(String key) {
-        return inRepeatingProcess.get(key);
+        return inRepeatingProcess.get(key.toLowerCase());
     }
 
     public boolean isInLeaningMenu() {
@@ -160,6 +186,13 @@ public class User {
         return inRepeatMenu;
     }
 
-public static class IncorrectMenuSelectionException extends Exception {
-}
+    public String getStatistic (){
+        return "Внимание! Стасистика включает в себя также и дубликаты слов. Например \"Автомобиль -> Car\" и " +
+                "\"Car -> Автомобиль\" включены в данный список как два отдельных слова. \n\n" +
+                "Изученные слова: " + inRepeatingProcess.keySet().size() + "\n" +
+                "Слова на изучении: " + inLeaningProcess.keySet().size();
+    }
+
+    public static class IncorrectMenuSelectionException extends Exception {
+    }
 }

@@ -58,7 +58,7 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
         switch (data) {
             case ("delete") -> {
                 String[] texts = text.split(" - ");
-                user.remove(texts[0].trim());
+                user.removeWord(texts[0].trim());
                 editKeyboardAfterDeleteMessage(callbackQuery);
             }
             case ("next") -> {
@@ -77,6 +77,48 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
                 String[] texts = text.split(" - ");
                 user.fromRepeatToLeaning(texts[0].trim());
                 editKeyboardAfterLeanedOrForgot(callbackQuery);
+            }
+        }
+    }
+
+    /*Оброботка текстовых команд или в случае, если пользователь присылает слова на добавление в словарь*/
+    private void handleTextMessage(Message message) {
+        String messageText = message.getText();
+        User user = telegramBot.Main.userMap.get(message.getChatId());
+
+        switch (messageText) {
+            case ("/start") -> {
+                sendMessage(message, "Добро пожаловать в наш бот по изучению английских слов.");
+            }
+            case ("\uD83D\uDDD2 Добавить слова") -> {
+                user.setMenu("inAddMenu");
+                sendMessage(message, """
+                        Можете отправлять слова, которые хотите добавить в свою коллекию.\s
+
+                        Если нужно добавить несколько слов, пожете отправлять их поочереди.
+
+                        Можете отправлять также словосочетания
+
+                        Учтите, что слова переводятся автоматически, с помощью сервисов онлайн перевода и никак не проходят дополнительные провекрки орфографии. Поэтому даже при небольших ошибка, перевод также будет ошибочный.""");
+            }
+            case ("\uD83D\uDDC3 Добавить 50 случайных слов") -> {
+                user.add50Words();
+            }
+            case ("\uD83D\uDC68\uD83C\uDFFB\u200D\uD83C\uDF93 Учить слова") -> {
+                user.setMenu("inLeaningMenu");
+                getLeaningWord(user, message);
+            }
+            case ("\uD83D\uDD01 Повторять слова") -> {
+                user.setMenu("inRepeatMenu");
+                getRepeatingWord(user, message);
+            }
+            case ("\uD83D\uDCC8 Статистика") -> {
+                sendMessage(message, user.getStatistic());
+            }
+            default -> {
+                if (user.isInAddMenu()) {
+                    sendMessage(message, user.add(messageText), true);
+                }
             }
         }
     }
@@ -124,40 +166,6 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
             execute(editMessageText);
         } catch (TelegramApiException e) {
             throw new RuntimeException(e);
-        }
-    }
-
-    /*Оброботка текстовых команд или в случае, если пользователь присылает слова на добавление в словарь*/
-    private void handleTextMessage(Message message) {
-        String messageText = message.getText();
-        User user = telegramBot.Main.userMap.get(message.getChatId());
-
-        switch (messageText) {
-            case ("/start") -> {
-                sendMessage(message, "Добро пожаловать в наш бот по изучению английских слов.");
-                help(message);
-            }
-            case ("\uD83D\uDDD2 Добавить слова") -> {
-                user.setMenu("inAddMenu");
-                sendMessage(message, "Можете отправлять слова, которые хотите добавить в свою коллекию " +
-                        "\n\n Можете отправлять также словосочетания" +
-                        "\n\nУчтите, что слова переводятся автоматически, с помощью сервисов онлайн перевода и " +
-                        "никак не проходят дополнительные провекрки орфографии. Поэтому даже при небольших ошибка, " +
-                        "перевод также будет ошибочный.");
-            }
-            case ("\uD83D\uDC68\uD83C\uDFFB\u200D\uD83C\uDF93 Учить слова") -> {
-                user.setMenu("inLeaningMenu");
-                getLeaningWord(user, message);
-            }
-            case ("\uD83D\uDD01 Повторять слова") -> {
-                user.setMenu("inRepeatMenu");
-                getRepeatingWord(user, message);
-            }
-            default -> {
-                if (user.isInAddMenu()) {
-                    sendMessage(message, user.add(messageText), true);
-                }
-            }
         }
     }
 
@@ -229,7 +237,7 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
     }
 
 
-    private void help(Message message) {
+    private void statistics(Message message) {
 
     }
 
@@ -284,7 +292,7 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
 
         keyboardFirstRow.add(new KeyboardButton("\uD83D\uDDD2 Добавить слова"));
         keyboardFirstRow.add(new KeyboardButton("\uD83D\uDDC3 Добавить 50 случайных слов"));
-        keyboardFirstRow.add(new KeyboardButton("\uD83D\uDEE0 Помощь"));
+        keyboardFirstRow.add(new KeyboardButton("\uD83D\uDCC8 Статистика"));
         keyboardSecondRow.add(new KeyboardButton("\uD83D\uDD01 Повторять слова"));
         keyboardSecondRow.add(new KeyboardButton("\uD83D\uDC68\uD83C\uDFFB\u200D\uD83C\uDF93 Учить слова"));
 

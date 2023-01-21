@@ -9,16 +9,12 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="17fabfc4-ac16-4de8-b079-1c103929943d" name="Changes" comment="0.5.5 Доработаны кнопки. Исправлены баги">
-      <change afterPath="$PROJECT_DIR$/src/main/java/admin/Admin.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/admin/AdminsData.java" afterDir="false" />
+    <list default="true" id="17fabfc4-ac16-4de8-b079-1c103929943d" name="Changes" comment="0.8 Админ Панель полностью рабочая">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/META-INF/MANIFEST.MF" beforeDir="false" afterPath="$PROJECT_DIR$/META-INF/MANIFEST.MF" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/AllWordBase.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/telegramBot/AllWordBase.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/Main.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/telegramBot/Main.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/TelegramApiConnect.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/telegramBot/TelegramApiConnect.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/User.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/telegramBot/User.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/Word.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/telegramBot/Word.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/admin/Admin.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/admin/Admin.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/telegramBot/AllWordBase.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/telegramBot/AllWordBase.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/telegramBot/TelegramApiConnect.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/telegramBot/TelegramApiConnect.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/telegramBot/User.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/telegramBot/User.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -53,6 +49,21 @@
     </option>
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
     <option name="RESET_MODE" value="MIXED" />
+  </component>
+  <component name="GithubProjectSettings">
+    <option name="branchProtectionPatterns">
+      <list>
+        <option value="main" />
+      </list>
+    </option>
+  </component>
+  <component name="GithubPullRequestsUISettings">
+    <option name="recentNewPullRequestHead">
+      <RepoCoordinatesHolder>
+        <option name="owner" value="Sturvi" />
+        <option name="repository" value="word_learning_BOT" />
+      </RepoCoordinatesHolder>
+    </option>
   </component>
   <component name="MarkdownSettingsMigration">
     <option name="stateVersion" value="1" />
@@ -157,7 +168,14 @@
       <option name="project" value="LOCAL" />
       <updated>1674210024930</updated>
     </task>
-    <option name="localTasksCounter" value="5" />
+    <task id="LOCAL-00005" summary="0.8 Админ Панель полностью рабочая">
+      <created>1674292602307</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1674292602307</updated>
+    </task>
+    <option name="localTasksCounter" value="6" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -174,7 +192,7 @@
                   <entry key="branch">
                     <value>
                       <list>
-                        <option value="0.5_+_testing_for_delete_Traslator_text_class" />
+                        <option value="origin/main" />
                       </list>
                     </value>
                   </entry>
@@ -206,7 +224,8 @@
     <MESSAGE value="0.5.1 перевод текстов переведен в класс Word" />
     <MESSAGE value="0.5.3 работа над кнопками" />
     <MESSAGE value="0.5.4 работа tts" />
-    <option name="LAST_COMMIT_MESSAGE" value="0.5.4 работа tts" />
+    <MESSAGE value="0.8 Админ Панель полностью рабочая" />
+    <option name="LAST_COMMIT_MESSAGE" value="0.8 Админ Панель полностью рабочая" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -215,16 +234,6 @@
           <url>jar://$MAVEN_REPOSITORY$/com/microsoft/cognitiveservices/speech/client-sdk/1.24.2/client-sdk-1.24.2-sources.jar!/com/microsoft/cognitiveservices/speech/audio/AudioConfig.java</url>
           <line>162</line>
           <option name="timeStamp" value="29" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" type="java-line">
-          <url>file://$PROJECT_DIR$/src/main/java/telegramBot/User.java</url>
-          <line>47</line>
-          <option name="timeStamp" value="49" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" type="java-line">
-          <url>file://$PROJECT_DIR$/src/main/java/telegramBot/AllWordBase.java</url>
-          <line>19</line>
-          <option name="timeStamp" value="54" />
         </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>
