@@ -17,10 +17,11 @@ import telegramBot.Main;
 import telegramBot.TelegramApiConnect;
 import telegramBot.Word;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
-public class Admin {
+public class Admin  implements Serializable {
     private final Long chatID;
     private final String userName;
 
@@ -62,20 +63,20 @@ public class Admin {
         String command = callbackQuery.getData();
         if (command.equals("delete")) {
             editKeyboardAfterDecided(callbackQuery);
-            wordsChecking();
             AdminsData.removeWord();
             return;
+        } else if (command.equals("ok")){
+            String[] textInMessage = callbackQuery.getMessage().getText().trim().replaceAll("Eng: ", "")
+                    .replaceAll("Ru: ", "").split("\n");
+
+            Word word = new Word(textInMessage[0], textInMessage[1]);
+            AllWordBase.add(word);
+
+            editKeyboardAfterDecided(callbackQuery);
+            AdminsData.removeWord();
+        } else if (command.equals("next")) {
+            wordsChecking();
         }
-
-        String[] textInMessage = callbackQuery.getMessage().getText().trim().replaceAll("Eng: ", "")
-                .replaceAll("Ru: ", "").split("\n");
-
-        Word word = new Word(textInMessage[0], textInMessage[1]);
-        AllWordBase.add(word);
-
-        editKeyboardAfterDecided(callbackQuery);
-        AdminsData.removeWord();
-        wordsChecking();
     }
 
     private void editKeyboardAfterDecided(CallbackQuery callbackQuery) {
@@ -140,6 +141,12 @@ public class Admin {
             InlineKeyboardButton decidedButton = new InlineKeyboardButton("\uD83D\uDDC3 Приговор вынесен");
             decidedButton.setCallbackData("decidedButton");
             keyboard.get(0).add(decidedButton);
+
+            keyboard.add(new ArrayList<>());
+            InlineKeyboardButton next = new InlineKeyboardButton("➡️Следующее слово");
+            next.setCallbackData("next");
+            keyboard.get(1).add(next);
+
         }
 
         InlineKeyboardMarkup keyboardMarkup = new InlineKeyboardMarkup();
