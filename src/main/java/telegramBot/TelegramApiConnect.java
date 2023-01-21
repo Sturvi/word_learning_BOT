@@ -95,14 +95,15 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
                 sendMessage(message, """
                         Можете отправлять слова, которые хотите добавить в свою коллекию.\s
 
-                        Если нужно добавить несколько слов, пожете отправлять их поочереди.
+                        Если нужно добавить несколько слов, можете отправлять их по очереди.
 
                         Можете отправлять также словосочетания
 
-                        Учтите, что слова переводятся автоматически, с помощью сервисов онлайн перевода и никак не проходят дополнительные провекрки орфографии. Поэтому даже при небольших ошибка, перевод также будет ошибочный.""");
+                        Учтите, что слова переводятся автоматически, с помощью сервисов онлайн перевода и никак не проходят дополнительные проверки орфографии. Поэтому даже при небольших ошибках, перевод также будет ошибочный.""");
             }
             case ("\uD83D\uDDC3 Добавить 50 случайных слов") -> {
                 user.add50Words();
+                sendMessage(message, "50 случайных слов успешно добавлены в ваш словарь");
             }
             case ("\uD83D\uDC68\uD83C\uDFFB\u200D\uD83C\uDF93 Учить слова") -> {
                 user.setMenu("inLeaningMenu");
@@ -133,11 +134,11 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
 
         String[] texts = message.getText().split(" - ");
 
-        if (telegramBot.Main.userMap.get(message.getChatId()).inRepeatingProcessContainsKey(texts[0])) {
+        if (telegramBot.Main.userMap.get(message.getChatId()).inRepeatingProcessContainsKey(texts[0].toLowerCase())) {
             InlineKeyboardButton forgot = new InlineKeyboardButton("\uD83D\uDC68\uD83C\uDFFB\u200D\uD83C\uDF93 Снова изучать это слово");
             forgot.setCallbackData("forgot");
             keyboard.getKeyboard().get(0).set(1, forgot);
-        } else if (telegramBot.Main.userMap.get(message.getChatId()).inLeaningProcessContainsKey(texts[0])) {
+        } else if (telegramBot.Main.userMap.get(message.getChatId()).inLeaningProcessContainsKey(texts[0].toLowerCase())) {
             InlineKeyboardButton learned = new InlineKeyboardButton("\uD83E\uDDE0 Уже знаю это слово");
             learned.setCallbackData("learned");
             keyboard.getKeyboard().get(0).set(1, learned);
@@ -187,7 +188,7 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
             String wordsForSend = user.getRandomLearningWord();
             sendWordWithVoice(wordsForSend, message);
         } catch (ArrayIndexOutOfBoundsException e) {
-            sendMessage(message, "У вас нет слов на изучения в данный момент. Пожалуйста, " +
+            sendMessage(message, "У вас нет слов для изучения в данный момент. Пожалуйста, " +
                     "добавьте новые слова, или воспользуйтесь нашим банком слов.");
         } catch (User.IncorrectMenuSelectionException e) {
             sendMessage(message, "Вы не выбрали меню. Пожалуйста выбери действие которе " +
@@ -328,7 +329,7 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
             }
         }
 
-        InlineKeyboardButton next = new InlineKeyboardButton("➡ Слудеющее слово");
+        InlineKeyboardButton next = new InlineKeyboardButton("➡ Следующее слово");
         next.setCallbackData("next");
         keyboard.get(1).add(next);
 

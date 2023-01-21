@@ -1,3 +1,3 @@
 Manifest-Version: 1.0
-telegramBot.Main-Class: telegramBot.Main
+Main-Class: telegramBot.Main
 

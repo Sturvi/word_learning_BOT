@@ -24,18 +24,18 @@ public class User  implements Serializable {
     }
 
     public void removeWord(String keyWord) {
-        inRepeatingProcess.remove(keyWord);
-        inLeaningProcess.remove(keyWord);
+        inRepeatingProcess.remove(keyWord.toLowerCase());
+        inLeaningProcess.remove(keyWord.toLowerCase());
     }
 
     public void fromLeaningToRepeat(String key) {
-        inRepeatingProcess.put(key, inLeaningProcess.get(key));
-        inLeaningProcess.remove(key);
+        inRepeatingProcess.put(key.toLowerCase(), inLeaningProcess.get(key));
+        inLeaningProcess.remove(key.toLowerCase());
     }
 
     public void fromRepeatToLeaning(String key) {
-        inLeaningProcess.put(key, inRepeatingProcess.get(key));
-        inRepeatingProcess.remove(key);
+        inLeaningProcess.put(key.toLowerCase(), inRepeatingProcess.get(key));
+        inRepeatingProcess.remove(key.toLowerCase());
     }
 
     public boolean inLeaningProcessContainsKey(String key) {
@@ -68,8 +68,7 @@ public class User  implements Serializable {
         String[] wordKeys = AllWordBase.getKeySet();
 
 
-        for (int count = wordKeys.length >= 50 ? 50 : 50 - wordKeys.length; count < 50; count++) {
-            int handingCount = 0;
+        for (int count = 0; count < 50; count++) {
             while (true) {
                 int randomWord = (int) (Math.random() * wordKeys.length);
                 if (wordKeys[randomWord] != null && !checkInUserMaps(wordKeys[randomWord].toLowerCase())) {
@@ -77,15 +76,6 @@ public class User  implements Serializable {
                     wordKeys[randomWord] = null;
                     break;
                 }
-
-                if (handingCount == 50) {
-                    break;
-                } else {
-                    handingCount++;
-                }
-            }
-            if (handingCount == 51) {
-                break;
             }
         }
     }

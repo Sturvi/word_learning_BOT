@@ -13,6 +13,17 @@
           </config>
         </ContributedStateBase>
       </target>
+      <target name="root@212.227.210.51:222" type="ssh/sftp" uuid="a47179a3-15dd-43a4-bc32-4793ac973452">
+        <config>
+          <option name="projectRootOnTarget" value="/root/word_learning_BOT" />
+          <option name="serverName" value="root@212.227.210.51:22 password" />
+        </config>
+        <ContributedStateBase type="JavaLanguageRuntime">
+          <config>
+            <option name="javaVersionString" value="19.0.1" />
+          </config>
+        </ContributedStateBase>
+      </target>
     </targets>
   </component>
 </project>
