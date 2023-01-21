@@ -1,6 +1,5 @@
-import org.telegram.telegrambots.meta.api.objects.Message;
+package telegramBot;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -101,7 +100,7 @@ public class User {
             inLeaningProcess.put(word.getEnWord(), word);
             inLeaningProcess.put(word.getRuWord(), word);
 
-            AllWordBase.add(word);
+            admin.AdminsData.addWord(word);
         }
 
         //Нужно добавить отправку сообщения уведомления
@@ -112,7 +111,6 @@ public class User {
         for (Word tempWord : wordList) {
             inLeaningProcess.put(tempWord.getEnWord(), tempWord);
             inLeaningProcess.put(tempWord.getRuWord(), tempWord);
-
         }
 
         //Нужно добавить отправку сообщения уведомления

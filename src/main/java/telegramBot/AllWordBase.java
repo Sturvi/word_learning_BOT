@@ -1,3 +1,5 @@
+package telegramBot;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
@@ -24,5 +26,9 @@ public class AllWordBase {
 
         allWordInBase.get(word.getEnWord()).add(word);
         allWordInBase.get(word.getRuWord()).add(word);
+    }
+
+    public static int getWordBaseSize() {
+        return allWordInBase.keySet().size();
     }
 }

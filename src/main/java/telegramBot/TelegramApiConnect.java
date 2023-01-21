@@ -1,7 +1,8 @@
+package telegramBot;
+
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.send.SendAudio;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
-import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageCaption;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageReplyMarkup;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
 import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
@@ -18,7 +19,6 @@ import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 /*Данный класс подключается к телеграмм боту, принимает обновления,
 распледеляет задачи и отправляет сообщения пользователям*/
@@ -26,9 +26,17 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
 
     @Override
     public void onUpdateReceived(Update update) {
+
         Long chatId = update.getMessage() == null ? update.getCallbackQuery().getMessage().getChatId() : update.getMessage().getChatId();
-        if (!Main.userMap.containsKey(chatId)) {
-            Main.userMap.put(chatId, new User());
+
+        //Если команда пришла от админа, ее обработка уходит в класс Админ
+        if (chatId.equals(Main.admin.getChatID())){
+            Main.admin.inputCommand(update);
+            return;
+        }
+
+        if (!telegramBot.Main.userMap.containsKey(chatId)) {
+            telegramBot.Main.userMap.put(chatId, new User());
         }
 
         if (update.hasCallbackQuery()) {
@@ -42,7 +50,7 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
     /*Оброботка нажаний на клавиши команд*/
     private void handleCallback(CallbackQuery callbackQuery) {
         Message message = callbackQuery.getMessage();
-        User user = Main.userMap.get(message.getChatId());
+        User user = telegramBot.Main.userMap.get(message.getChatId());
         String data = callbackQuery.getData();
         String text = callbackQuery.getMessage().getText();
 
@@ -83,11 +91,11 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
 
         String[] texts = message.getText().split(" - ");
 
-        if (Main.userMap.get(message.getChatId()).inRepeatingProcessContainsKey(texts[0])) {
+        if (telegramBot.Main.userMap.get(message.getChatId()).inRepeatingProcessContainsKey(texts[0])) {
             InlineKeyboardButton forgot = new InlineKeyboardButton("\uD83D\uDC68\uD83C\uDFFB\u200D\uD83C\uDF93 Снова изучать это слово");
             forgot.setCallbackData("forgot");
             keyboard.getKeyboard().get(0).set(1, forgot);
-        } else if (Main.userMap.get(message.getChatId()).inLeaningProcessContainsKey(texts[0])) {
+        } else if (telegramBot.Main.userMap.get(message.getChatId()).inLeaningProcessContainsKey(texts[0])) {
             InlineKeyboardButton learned = new InlineKeyboardButton("\uD83E\uDDE0 Уже знаю это слово");
             learned.setCallbackData("learned");
             keyboard.getKeyboard().get(0).set(1, learned);
@@ -122,7 +130,7 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
     /*Оброботка текстовых команд или в случае, если пользователь присылает слова на добавление в словарь*/
     private void handleTextMessage(Message message) {
         String messageText = message.getText();
-        User user = Main.userMap.get(message.getChatId());
+        User user = telegramBot.Main.userMap.get(message.getChatId());
 
         switch (messageText) {
             case ("/start") -> {
@@ -182,7 +190,7 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
     /*Данный метод отправляет пользователю слово c произношением. В случае невозможность получить аудио файл с произношением
     отправляет просто слово*/
     private void sendWordWithVoice(String key, Message message) {
-        User user = Main.userMap.get(message.getChatId());
+        User user = telegramBot.Main.userMap.get(message.getChatId());
         Word word;
         if (user.isInLeaningMenu()) {
             word = user.getInLearningProcess(key);
@@ -252,7 +260,7 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
         sendMsg(sendMessage);
     }
 
-    private void sendMsg(SendMessage sendMessage) {
+    public void sendMsg(SendMessage sendMessage) {
         sendMessage.enableMarkdown(true);
         sendMessage.enableHtml(true);
         try {
@@ -301,11 +309,11 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
             delete.setCallbackData("delete");
             keyboard.get(0).add(delete);
 
-            if (Main.userMap.get(chatId).isInLeaningMenu()) {
+            if (telegramBot.Main.userMap.get(chatId).isInLeaningMenu()) {
                 InlineKeyboardButton learned = new InlineKeyboardButton("\uD83E\uDDE0 Уже знаю это слово");
                 learned.setCallbackData("learned");
                 keyboard.get(0).add(learned);
-            } else if (Main.userMap.get(chatId).isInRepeatMenu()) {
+            } else if (telegramBot.Main.userMap.get(chatId).isInRepeatMenu()) {
                 InlineKeyboardButton forgot = new InlineKeyboardButton("\uD83D\uDC68\uD83C\uDFFB\u200D\uD83C\uDF93 Снова изучать это слово");
                 forgot.setCallbackData("forgot");
                 keyboard.get(0).add(forgot);
