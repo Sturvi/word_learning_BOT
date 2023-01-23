@@ -101,10 +101,10 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
 
                         Учтите, что слова переводятся автоматически, с помощью сервисов онлайн перевода и никак не проходят дополнительные проверки орфографии. Поэтому даже при небольших ошибках, перевод также будет ошибочный.""");
             }
-            case ("\uD83D\uDDC3 Добавить 50 случайных слов") -> {
+/*            case ("\uD83D\uDDC3 Добавить 50 случайных слов") -> {
                 user.add50Words();
                 sendMessage(message, "50 случайных слов успешно добавлены в ваш словарь");
-            }
+            }*/
             case ("\uD83D\uDC68\uD83C\uDFFB\u200D\uD83C\uDF93 Учить слова") -> {
                 user.setMenu("inLeaningMenu");
                 getLeaningWord(user, message);
@@ -112,6 +112,14 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
             case ("\uD83D\uDD01 Повторять слова") -> {
                 user.setMenu("inRepeatMenu");
                 getRepeatingWord(user, message);
+            }
+            case ("\uD83D\uDCD3 Список изучаемых слов") -> {
+                user.setMenu("AllFalse");
+                user.getLeaningWordList(message, true);
+            }
+            case ("\uD83D\uDCD3 Список слов на повторении") -> {
+                user.setMenu("AllFalse");
+                user.getLeaningWordList(message, false);
             }
             case ("\uD83D\uDCC8 Статистика") -> {
                 sendMessage(message, user.getStatistic());
@@ -291,15 +299,18 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
         List<KeyboardRow> keyboardRowList = new ArrayList<>();
         KeyboardRow keyboardFirstRow = new KeyboardRow();
         KeyboardRow keyboardSecondRow = new KeyboardRow();
+        KeyboardRow keyboardThirdRow = new KeyboardRow();
 
         keyboardFirstRow.add(new KeyboardButton("\uD83D\uDDD2 Добавить слова"));
-        keyboardFirstRow.add(new KeyboardButton("\uD83D\uDDC3 Добавить 50 случайных слов"));
         keyboardFirstRow.add(new KeyboardButton("\uD83D\uDCC8 Статистика"));
-        keyboardSecondRow.add(new KeyboardButton("\uD83D\uDD01 Повторять слова"));
-        keyboardSecondRow.add(new KeyboardButton("\uD83D\uDC68\uD83C\uDFFB\u200D\uD83C\uDF93 Учить слова"));
+        keyboardSecondRow.add(new KeyboardButton("\uD83D\uDCD3 Список слов на повторении"));
+        keyboardSecondRow.add(new KeyboardButton("\uD83D\uDCD3 Список изучаемых слов"));
+        keyboardThirdRow.add(new KeyboardButton("\uD83D\uDD01 Повторять слова"));
+        keyboardThirdRow.add(new KeyboardButton("\uD83D\uDC68\uD83C\uDFFB\u200D\uD83C\uDF93 Учить слова"));
 
         keyboardRowList.add(keyboardFirstRow);
         keyboardRowList.add(keyboardSecondRow);
+        keyboardRowList.add(keyboardThirdRow);
 
         replyKeyboardMarkup.setKeyboard(keyboardRowList);
     }
@@ -342,13 +353,13 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
 
     @Override
     public String getBotUsername() {
-        // test bot name return "SturviTestBot";
+        //return "SturviTestBot"; // test bot name
         return "@WordLeaningBot";
     }
 
     @Override
     public String getBotToken() {
-        // test token return "5857743410:AAHyinYvlTc-grG76012Nqj6Of5SGNgmMvE";
+        //return "5857743410:AAHyinYvlTc-grG76012Nqj6Of5SGNgmMvE"; // test token
         return "5915434126:AAHto2nUM8S1a9cb2Fgxz8F3P45BV4QGp7U";
     }
 }

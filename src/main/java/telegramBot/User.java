@@ -1,16 +1,16 @@
 package telegramBot;
 
+import org.telegram.telegrambots.meta.api.objects.Message;
+
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class User  implements Serializable {
-    private static final String API_KEY = "AIzaSyAbzEWfx3-YaA4NstSglQztTzpSGSDkmgA";
-
+public class User implements Serializable {
     private final Map<String, Word> inLeaningProcess;
-
-    private Map<String, Word> inRepeatingProcess;
+    private final Map<String, Word> inRepeatingProcess;
     private boolean inAddMenu;
     private boolean inLeaningMenu;
     private boolean inRepeatMenu;
@@ -177,11 +177,40 @@ public class User  implements Serializable {
         return inRepeatMenu;
     }
 
-    public String getStatistic (){
+    public String getStatistic() {
         return "Внимание! Стасистика включает в себя также и дубликаты слов. Например \"Автомобиль -> Car\" и " +
                 "\"Car -> Автомобиль\" включены в данный список как два отдельных слова. \n\n" +
                 "Изученные слова: " + inRepeatingProcess.keySet().size() + "\n" +
                 "Слова на изучении: " + inLeaningProcess.keySet().size();
+    }
+
+    /* В случаях когда boolean переменная  leaningList true метод возвращает списов изучаемых слов.
+    В противном случае, повторяемых*/
+    public void getLeaningWordList(Message message, boolean leaningList) {
+        StringBuilder allWords = new StringBuilder();
+        String[] keys = leaningList ? inLeaningProcess.keySet().toArray(new String[0]) : inRepeatingProcess.keySet().toArray(new String[0]);
+        List<Word> usedWords = new ArrayList<>();
+        TelegramApiConnect telegramApiConnect = new TelegramApiConnect();
+
+        if (keys.length == 0){
+            telegramApiConnect.sendMessage(message, "\uD83D\uDE14  Ваш список пуст");
+            return;
+        }
+
+        for (String key : keys) {
+            Word word = leaningList ? inLeaningProcess.get(key) : inRepeatingProcess.get(key);
+            if (!usedWords.contains(word)){
+                usedWords.add(word);
+                allWords.append(word.getEnWord() + " - " + word.getRuWord() + "\n");
+            }
+            if (allWords.length() >= 3900){
+                telegramApiConnect.sendMessage(message, allWords.toString());
+                allWords = new StringBuilder();
+            }
+        }
+        if (allWords.length() > 0) {
+            telegramApiConnect.sendMessage(message, allWords.toString());
+        }
     }
 
     public static class IncorrectMenuSelectionException extends Exception {
