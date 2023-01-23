@@ -209,8 +209,8 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
 
         String textForMessage;
 
-        if (word.getEnWord().equals(key)) {
-            textForMessage = key + " -  <span class='tg-spoiler'>   " + word.getRuWord() + "   </span>";
+        if (word.getEnWord().equalsIgnoreCase(key)) {
+            textForMessage = word.getEnWord() + " -  <span class='tg-spoiler'>   " + word.getRuWord() + "   </span>";
         } else {
             textForMessage = word.getRuWord() + " -  <span class='tg-spoiler'>   " + word.getEnWord() + "   </span>";
         }
@@ -242,11 +242,12 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
 
     }
 
-    /*Отправка обычных тектовых сообщений. Принимает Long chatId и текст сообщения*/
+    /*Отправка обычных тектовых сообщений.*/
     public void sendMessage(Message message, String text) {
         sendMessage(message, text, false);
     }
 
+    /*Отправка обычных тектовых сообщений с привязкой клавиатуры.*/
     public void sendMessage(Message message, String text, InlineKeyboardMarkup inlineKeyboardMarkup) {
         SendMessage sendMessage = new SendMessage();
         sendMessage.setChatId(message.getChatId());
@@ -341,11 +342,11 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
 
     @Override
     public String getBotUsername() {
-        return "WordLeaningBot";
+        return "SturviTestBot";
     }
 
     @Override
     public String getBotToken() {
-        return "5915434126:AAHto2nUM8S1a9cb2Fgxz8F3P45BV4QGp7U";
+        return "5857743410:AAHyinYvlTc-grG76012Nqj6Of5SGNgmMvE";
     }
 }

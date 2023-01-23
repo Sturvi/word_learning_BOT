@@ -29,12 +29,12 @@ public class User  implements Serializable {
     }
 
     public void fromLeaningToRepeat(String key) {
-        inRepeatingProcess.put(key.toLowerCase(), inLeaningProcess.get(key));
+        inRepeatingProcess.put(key.toLowerCase(), inLeaningProcess.get(key.toLowerCase()));
         inLeaningProcess.remove(key.toLowerCase());
     }
 
     public void fromRepeatToLeaning(String key) {
-        inLeaningProcess.put(key.toLowerCase(), inRepeatingProcess.get(key));
+        inLeaningProcess.put(key.toLowerCase(), inRepeatingProcess.get(key.toLowerCase()));
         inRepeatingProcess.remove(key.toLowerCase());
     }
 
