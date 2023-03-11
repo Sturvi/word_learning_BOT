@@ -2,9 +2,11 @@ package telegramBot;
 
 import admin.Admin;
 import admin.AdminsData;
+import dataBase.DatabaseConnection;
 import org.telegram.telegrambots.meta.TelegramBotsApi;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import org.telegram.telegrambots.updatesreceivers.DefaultBotSession;
+import telegramBot.user.User;
 
 import java.io.*;
 import java.util.HashMap;
@@ -15,15 +17,13 @@ public class Main {
     public static Admin admin = new Admin();
 
     public static void main(String[] args) {
+        DatabaseConnection.connect();
+
         File backupDir = new File("backupDir");
 
         if (!backupDir.exists()) {
             backupDir.mkdirs();
         }
-
-       restoreUserMapAndAdmin();
-        AllWordBase.restoreAllWord();
-        AdminsData.restoreWordsQueueForAddingToBase();
 
         Backup backup = new Backup();
         backup.start();
@@ -55,6 +55,5 @@ public class Main {
             e.printStackTrace();
         }
     }
-
 
 }

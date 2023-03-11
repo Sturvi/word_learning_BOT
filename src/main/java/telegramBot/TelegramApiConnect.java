@@ -1,5 +1,6 @@
 package telegramBot;
 
+import dataBase.DatabaseConnection;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.send.SendAudio;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
@@ -15,6 +16,7 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKe
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardButton;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
+import telegramBot.user.User;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -26,6 +28,8 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
 
     @Override
     public void onUpdateReceived(Update update) {
+
+        DatabaseConnection.checkUser(update.getMessage());
 
         Long chatId = update.getMessage() == null ? update.getCallbackQuery().getMessage().getChatId() : update.getMessage().getChatId();
 
@@ -126,7 +130,7 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
             }
             default -> {
                 if (user.isInAddMenu()) {
-                    sendMessage(message, user.add(messageText), true);
+                    sendMessage(message, user.add(messageText, message.getChatId()), true);
                 }
             }
         }

@@ -1,8 +1,14 @@
-package telegramBot;
+package telegramBot.user;
 
+import dataBase.DatabaseConnection;
 import org.telegram.telegrambots.meta.api.objects.Message;
+import telegramBot.AllWordBase;
+import telegramBot.TelegramApiConnect;
+import telegramBot.Word;
 
 import java.io.Serializable;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -46,7 +52,7 @@ public class User implements Serializable {
         return inRepeatingProcess.containsKey(key.toLowerCase());
     }
 
-    public String add(String word) {
+    public String add2(String word) {
         if (word.length() > 1 || word.equalsIgnoreCase("i")) {
             if (!checkInUserMaps(word.toLowerCase())) {
                 if (AllWordBase.check(word.toLowerCase())) {
@@ -59,6 +65,26 @@ public class User implements Serializable {
                 //Отправить сообщение, что слово уже есть в твоем словаре
                 return "Данное слово находится в вашем словаре";
             }
+        } else {
+            return "Слово должно состоять из 2 и более букв";
+        }
+    }
+
+    public String add(String word, Long userId) {
+        if (word.length() > 1 || word.equalsIgnoreCase("i")) {
+
+            WordsInDatabase.addWord(word, userId);
+           /* if (!checkInUserMaps(word.toLowerCase())) {
+
+
+
+
+                return "Слово (или словосочетание) успешно добавлено в твой словарь";
+            } else {
+                //Отправить сообщение, что слово уже есть в твоем словаре
+                return "Данное слово находится в вашем словаре";
+            }*/
+            return "Слово (или словосочетание) успешно добавлено в твой словарь";
         } else {
             return "Слово должно состоять из 2 и более букв";
         }
