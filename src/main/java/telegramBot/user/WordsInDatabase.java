@@ -37,9 +37,10 @@ public class WordsInDatabase extends DatabaseConnection {
                     ps.setString(2, translatorResult.get(1));
                     ps.executeUpdate();
                     System.out.println("Слово успешно добавлено в общий словарь");
+                    ps = connection.prepareStatement("SELECT lastval()");
                     rs = ps.executeQuery();
                     if (rs.next()) {
-                        wordId.add(rs.getInt("id"));
+                        wordId.add(rs.getInt(1));
                     }
                 } catch (SQLException e) {
                     System.out.println("Не удалось добавить слово");
@@ -47,7 +48,8 @@ public class WordsInDatabase extends DatabaseConnection {
                 }
             }
 
-            ps = connection.prepareStatement("SELECT word_id FROM user_word_lists WHERE user_id = ? AND word_id IN (" + String.join(",", Collections.nCopies(wordId.size(), "?")) + ")");
+            String commaSeparatedPlaceholders = String.join(",", Collections.nCopies(wordId.size(), "?"));
+            ps = connection.prepareStatement("SELECT word_id FROM user_word_lists WHERE user_id = ? AND word_id IN (" + commaSeparatedPlaceholders + ")");
             ps.setLong(1, userId);
             int count = 2;
             for (int i : wordId) {
