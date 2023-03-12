@@ -1,6 +1,7 @@
 package telegramBot.user;
 
 import dataBase.DatabaseConnection;
+import org.jetbrains.annotations.NotNull;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import telegramBot.AllWordBase;
 import telegramBot.TelegramApiConnect;
@@ -9,10 +10,7 @@ import telegramBot.Word;
 import java.io.Serializable;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class User implements Serializable {
     private final Map<String, Word> inLeaningProcess;
@@ -52,57 +50,25 @@ public class User implements Serializable {
         return inRepeatingProcess.containsKey(key.toLowerCase());
     }
 
-    public String add2(String word) {
+    public String add(@NotNull String word, Long userId) {
         if (word.length() > 1 || word.equalsIgnoreCase("i")) {
-            if (!checkInUserMaps(word.toLowerCase())) {
-                if (AllWordBase.check(word.toLowerCase())) {
-                    addWordFromAllWordMap(word);
-                } else {
-                    addWordFromTranslator(word);
-                }
-                return "Слово (или словосочетание) успешно добавлено в твой словарь";
-            } else {
-                //Отправить сообщение, что слово уже есть в твоем словаре
-                return "Данное слово находится в вашем словаре";
+            Set<Integer> wordId = new HashSet<>();
+            WordsInDatabase.checkNewWordInDB(word, wordId);
+
+            if (wordId.size() == 0) {
+                WordsInDatabase.addNewWordToDBFromTranslator(word, wordId);
             }
-        } else {
-            return "Слово должно состоять из 2 и более букв";
-        }
-    }
 
-    public String add(String word, Long userId) {
-        if (word.length() > 1 || word.equalsIgnoreCase("i")) {
+            WordsInDatabase.checkWordInUserDictionary(wordId, userId);
 
-            WordsInDatabase.addWord(word, userId);
-           /* if (!checkInUserMaps(word.toLowerCase())) {
+            if (wordId.isEmpty()){
+                return "Данное слово (или словосочетание) уже находятся в твоем словаре";
+            }
 
-
-
-
-                return "Слово (или словосочетание) успешно добавлено в твой словарь";
-            } else {
-                //Отправить сообщение, что слово уже есть в твоем словаре
-                return "Данное слово находится в вашем словаре";
-            }*/
+            WordsInDatabase.addNewWordsToUserDictionary(wordId, userId);
             return "Слово (или словосочетание) успешно добавлено в твой словарь";
         } else {
             return "Слово должно состоять из 2 и более букв";
-        }
-    }
-
-    public void add50Words() {
-        String[] wordKeys = AllWordBase.getKeySet();
-
-
-        for (int count = 0; count < 50; count++) {
-            while (true) {
-                int randomWord = (int) (Math.random() * wordKeys.length);
-                if (wordKeys[randomWord] != null && !checkInUserMaps(wordKeys[randomWord].toLowerCase())) {
-                    addWordFromAllWordMap(wordKeys[randomWord].toLowerCase());
-                    wordKeys[randomWord] = null;
-                    break;
-                }
-            }
         }
     }
 
@@ -131,32 +97,6 @@ public class User implements Serializable {
         } else {
             throw new IncorrectMenuSelectionException();
         }
-    }
-
-    private void addWordFromTranslator(String inputWord) {
-        //the first word in this List is in English, the second in Russian
-        var translatedWord = Word.translate(inputWord);
-
-        var word = new Word(translatedWord.get(0), translatedWord.get(1));
-
-        if (!translatedWord.get(0).equals(translatedWord.get(1))) {
-            inLeaningProcess.put(word.getEnWord().toLowerCase(), word);
-            inLeaningProcess.put(word.getRuWord().toLowerCase(), word);
-
-            admin.AdminsData.addWord(word);
-        }
-
-        //Нужно добавить отправку сообщения уведомления
-    }
-
-    private void addWordFromAllWordMap(String key) {
-        List<Word> wordList = AllWordBase.getWordObjects(key.toLowerCase());
-        for (Word tempWord : wordList) {
-            inLeaningProcess.put(tempWord.getEnWord().toLowerCase(), tempWord);
-            inLeaningProcess.put(tempWord.getRuWord().toLowerCase(), tempWord);
-        }
-
-        //Нужно добавить отправку сообщения уведомления
     }
 
     public boolean isInAddMenu() {
