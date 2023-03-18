@@ -15,20 +15,10 @@ public class Word implements Serializable {
 
     private final String enWord;
     private final String ruWord;
-    private Integer count;
 
     public Word(String enWord, String ruWord) {
         this.enWord = enWord;
         this.ruWord = ruWord;
-        count = 0;
-    }
-
-    public Integer getCount() {
-        return count;
-    }
-
-    public void setCount(Integer count) {
-        this.count = count;
     }
 
     public String getEnWord() {

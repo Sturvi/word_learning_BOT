@@ -8,6 +8,7 @@ import telegramBot.TelegramApiConnect;
 import telegramBot.Word;
 
 import java.io.Serializable;
+import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.*;
@@ -72,11 +73,6 @@ public class User implements Serializable {
         }
     }
 
-    private boolean checkInUserMaps(String tempWord) {
-        return inLeaningProcess.containsKey(tempWord.toLowerCase())
-                || inRepeatingProcess.containsKey(tempWord.toLowerCase());
-    }
-
     public String getRandomLearningWord() throws ArrayIndexOutOfBoundsException, IncorrectMenuSelectionException {
         if (inLeaningMenu) {
             String[] keysArr = inLeaningProcess.keySet().toArray(new String[0]);
@@ -103,27 +99,17 @@ public class User implements Serializable {
         return inAddMenu;
     }
 
-    public void setMenu(String menu) {
-        switch (menu) {
-            case ("inAddMenu"):
-                inAddMenu = true;
-                inRepeatMenu = false;
-                inLeaningMenu = false;
-                break;
-            case ("inRepeatMenu"):
-                inAddMenu = false;
-                inRepeatMenu = true;
-                inLeaningMenu = false;
-                break;
-            case ("inLeaningMenu"):
-                inAddMenu = false;
-                inRepeatMenu = false;
-                inLeaningMenu = true;
-                break;
-            default:
-                inAddMenu = false;
-                inRepeatMenu = false;
-                inLeaningMenu = false;
+    public static void setMenu(Long userId, String menuName) {
+        Connection connection = DatabaseConnection.getConnection();
+
+        try (PreparedStatement ps = connection.prepareStatement(
+                "UPDATE  user_menu SET menu_name = ? WHERE user_id = ?")) {
+            ps.setString(1, menuName);
+            ps.setLong(2, userId);
+            ps.executeUpdate();
+            System.out.println("User " + userId + " menu selected");
+        } catch (SQLException e) {
+            System.err.println("Error inserting user menu: " + e.getMessage());
         }
     }
 
