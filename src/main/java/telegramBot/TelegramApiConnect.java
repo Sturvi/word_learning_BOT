@@ -54,34 +54,27 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
     }
 
     /*Оброботка нажаний на клавиши команд*/
-    private void handleCallback(CallbackQuery callbackQuery) {
+    private void handleCallback(@NotNull CallbackQuery callbackQuery) {
         Message message = callbackQuery.getMessage();
-        User user = telegramBot.Main.userMap.get(message.getChatId());
+        Long userId = message.getChatId();
         String data = callbackQuery.getData();
         String text = callbackQuery.getMessage().getText();
 
 
         switch (data) {
             case ("delete") -> {
-                String[] texts = text.split(" - ");
-                user.removeWord(texts[0].trim());
+                User.removeWord(userId, text);
                 editKeyboardAfterDeleteMessage(callbackQuery);
             }
             case ("next") -> {
-                if (user.isInLeaningMenu()) {
-                    getRandomWordAndSendToUser(user, message);
-                } else if (user.isInRepeatMenu()) {
-                    getRepeatingWord(user, message);
-                }
+                getRandomWordAndSendToUser(message);
             }
             case ("learned") -> {
-                String[] texts = text.split(" - ");
-                user.fromLeaningToRepeat(texts[0].trim());
+                 User.changeWordListType(userId, "repetition", text);
                 editKeyboardAfterLeanedOrForgot(callbackQuery);
             }
             case ("forgot") -> {
-                String[] texts = text.split(" - ");
-                user.fromRepeatToLeaning(texts[0].trim());
+                User.changeWordListType(userId, "learning", text);
                 editKeyboardAfterLeanedOrForgot(callbackQuery);
             }
         }
@@ -149,7 +142,7 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
 
         String[] texts = message.getText().split(" - ");
         texts[0] = texts[0].trim();
-        texts[1] = texts[0].trim();
+        texts[1] = texts[1].trim();
 
         Long userId = message.getChatId();
         Connection connection = DatabaseConnection.getConnection();
@@ -317,11 +310,6 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
         }
 
         sendMessage(message, textForMessage, getKeyboard(message.getChatId()));
-    }
-
-
-    private void statistics(Message message) {
-
     }
 
     /*Отправка обычных тектовых сообщений.*/

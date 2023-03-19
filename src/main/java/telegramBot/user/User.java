@@ -3,10 +3,6 @@ package telegramBot.user;
 import dataBase.DatabaseConnection;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.telegram.telegrambots.meta.api.objects.Message;
-import telegramBot.AllWordBase;
-import telegramBot.TelegramApiConnect;
-import telegramBot.Word;
 
 import java.io.Serializable;
 import java.sql.Connection;
@@ -14,7 +10,6 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.*;
-import java.util.stream.Stream;
 
 public class User implements Serializable {
 
@@ -47,19 +42,54 @@ public class User implements Serializable {
     }
 
 
-    public void removeWord(String keyWord) {
-        inRepeatingProcess.remove(keyWord.toLowerCase());
-        inLeaningProcess.remove(keyWord.toLowerCase());
+    public static void removeWord(Long userId, @NotNull String text) {
+        String[] word = text.split(" - ");
+        word[0] = word[0].trim();
+        word[1] = word[1].trim();
+
+        Connection connection = DatabaseConnection.getConnection();
+        try (PreparedStatement preparedStatement = connection.prepareStatement(
+                "DELETE FROM user_word_list where user_id = ? AND word_id = (" +
+                        "SELECT word_id FROM words WHERE" +
+                        "(russian_word = ? AND english_word = ?) OR " +
+                        "(english_word = ? AND russian word = ?))")) {
+            preparedStatement.setLong(1, userId);
+            preparedStatement.setString(2, word[0]);
+            preparedStatement.setString(3, word[1]);
+            preparedStatement.setString(4, word[0]);
+            preparedStatement.setString(5, word[1]);
+            preparedStatement.execute();
+            System.out.println("Слово успешно удалено из словаря");
+        } catch (SQLException e) {
+            System.out.println("Не удалось удалить слово из словаря");
+            throw new RuntimeException(e);
+        }
     }
 
-    public void fromLeaningToRepeat(String key) {
-        inRepeatingProcess.put(key.toLowerCase(), inLeaningProcess.get(key.toLowerCase()));
-        inLeaningProcess.remove(key.toLowerCase());
-    }
+    public static void changeWordListType(Long userId, String listType, @NotNull String textFromMessage) {
+        Connection connection = DatabaseConnection.getConnection();
 
-    public void fromRepeatToLeaning(String key) {
-        inLeaningProcess.put(key.toLowerCase(), inRepeatingProcess.get(key.toLowerCase()));
-        inRepeatingProcess.remove(key.toLowerCase());
+        String[] word = textFromMessage.split("  -  ");
+        word[0] = word[0].trim();
+        word[1] = word[1].trim();
+
+        try (PreparedStatement preparedStatement = connection.prepareStatement(
+                "UPDATE user_word_lists " +
+                        "SET list_type = ? " +
+                        "WHERE user_id = ? AND word_id = " +
+                        "(SELECT word_id FROM words " +
+                        "WHERE (russian_word = ? AND english_word = ?) " +
+                        "OR (english_word = ? AND russian_word = ?))")) {
+            preparedStatement.setString(1, listType);
+            preparedStatement.setLong(2, userId);
+            preparedStatement.setString(3, word[0]);
+            preparedStatement.setString(4, word[1]);
+            preparedStatement.setString(5, word[0]);
+            preparedStatement.setString(6, word[1]);
+            preparedStatement.execute();
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public static String add(@NotNull String word, Long userId) {
