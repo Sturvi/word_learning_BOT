@@ -2,6 +2,7 @@ package telegramBot.user;
 
 import dataBase.DatabaseConnection;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import telegramBot.AllWordBase;
 import telegramBot.TelegramApiConnect;
@@ -10,23 +11,41 @@ import telegramBot.Word;
 import java.io.Serializable;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.*;
+import java.util.stream.Stream;
 
 public class User implements Serializable {
-    private final Map<String, Word> inLeaningProcess;
-    private final Map<String, Word> inRepeatingProcess;
-    private boolean inAddMenu;
-    private boolean inLeaningMenu;
-    private boolean inRepeatMenu;
 
     public User() {
-        inLeaningProcess = new HashMap<>();
-        inRepeatingProcess = new HashMap<>();
-        inAddMenu = false;
-        inLeaningMenu = false;
-        inRepeatMenu = false;
+
     }
+
+    public static @Nullable String getWordList(Long userId, String list_type) {
+        Connection connection = DatabaseConnection.getConnection();
+        StringBuilder stringBuilder = new StringBuilder();
+
+        try (PreparedStatement preparedStatement = connection.prepareStatement(
+                "SELECT russian_word, english_word FROM words WHERE word_id IN (" +
+                        "SELECT word_id FROM user_word_list WHERE user_id = ? AND list_type = ?)"
+        )) {
+            preparedStatement.setLong(1, userId);
+            preparedStatement.setString(2, list_type);
+            ResultSet resultSet = preparedStatement.executeQuery();
+            while (resultSet.next()) {
+                String russianWord = resultSet.getString("russian_word");
+                String englishWord = resultSet.getString("english_word");
+                stringBuilder.append(englishWord).append("  -  ").append(russianWord).append("\n");
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+
+        String result = stringBuilder.toString().trim();
+        return result.isEmpty() ? null : result;
+    }
+
 
     public void removeWord(String keyWord) {
         inRepeatingProcess.remove(keyWord.toLowerCase());
@@ -43,15 +62,7 @@ public class User implements Serializable {
         inRepeatingProcess.remove(key.toLowerCase());
     }
 
-    public boolean inLeaningProcessContainsKey(String key) {
-        return inLeaningProcess.containsKey(key.toLowerCase());
-    }
-
-    public boolean inRepeatingProcessContainsKey(String key) {
-        return inRepeatingProcess.containsKey(key.toLowerCase());
-    }
-
-    public String add(@NotNull String word, Long userId) {
+    public static String add(@NotNull String word, Long userId) {
         if (word.length() > 1 || word.equalsIgnoreCase("i")) {
             Set<Integer> wordId = new HashSet<>();
             WordsInDatabase.checkNewWordInDB(word, wordId);
@@ -62,7 +73,7 @@ public class User implements Serializable {
 
             WordsInDatabase.checkWordInUserDictionary(wordId, userId);
 
-            if (wordId.isEmpty()){
+            if (wordId.isEmpty()) {
                 return "Данное слово (или словосочетание) уже находятся в твоем словаре";
             }
 
@@ -73,30 +84,20 @@ public class User implements Serializable {
         }
     }
 
-    public String getRandomLearningWord() throws ArrayIndexOutOfBoundsException, IncorrectMenuSelectionException {
-        if (inLeaningMenu) {
-            String[] keysArr = inLeaningProcess.keySet().toArray(new String[0]);
-            if (keysArr.length == 0) {
-                throw new ArrayIndexOutOfBoundsException();
-            }
-            int random = (int) (Math.random() * keysArr.length);
+    public static String getUserMenu(Long userId) {
+        Connection connection = DatabaseConnection.getConnection();
+        String result = null;
+        try (PreparedStatement preparedStatement = connection.prepareStatement(
+                "SELECT menu_name FROM user_menu WHERE user_id = ?")) {
+            preparedStatement.setLong(1, userId);
+            ResultSet resultSet = preparedStatement.executeQuery();
 
-            return keysArr[random];
-        } else if (inRepeatMenu) {
-            String[] keysArr = inRepeatingProcess.keySet().toArray(new String[0]);
-            if (keysArr.length == 0) {
-                throw new ArrayIndexOutOfBoundsException();
-            }
-            int random = (int) (Math.random() * keysArr.length);
-
-            return keysArr[random];
-        } else {
-            throw new IncorrectMenuSelectionException();
+            resultSet.next();
+            result = resultSet.getString("menu_name");
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
         }
-    }
-
-    public boolean isInAddMenu() {
-        return inAddMenu;
+        return result;
     }
 
     public static void setMenu(Long userId, String menuName) {
@@ -113,56 +114,35 @@ public class User implements Serializable {
         }
     }
 
-    public Word getInLearningProcess(String key) {
-        return inLeaningProcess.get(key.toLowerCase());
-    }
+    public static @NotNull String getStatistic(Long userId) {
+        Connection connection = DatabaseConnection.getConnection();
+        Integer learningCount = null;
+        Integer repetitionCount = null;
+        Integer learnedCount = null;
 
-    public Word getInRepeatingProcess(String key) {
-        return inRepeatingProcess.get(key.toLowerCase());
-    }
+        try (PreparedStatement preparedStatement = connection.prepareStatement("" +
+                "SELECT " +
+                "(SELECT COUNT(word_id) FROM user_word_list WHERE user_id = ? AND list_type = 'learning') AS learning_count," +
+                "(SELECT COUNT(word_id) FROM user_word_list WHERE user_id = ? AND list_type = 'repetition') AS repetition_count," +
+                "(SELECT COUNT(word_id) FROM user_word_list WHERE user_id = ? AND list_type = 'learned') AS learned_count;")) {
+            preparedStatement.setLong(1, userId);
+            preparedStatement.setLong(2, userId);
+            preparedStatement.setLong(3, userId);
+            ResultSet resultSet = preparedStatement.executeQuery();
 
-    public boolean isInLeaningMenu() {
-        return inLeaningMenu;
-    }
-
-    public boolean isInRepeatMenu() {
-        return inRepeatMenu;
-    }
-
-    public String getStatistic() {
-        return "Внимание! Стасистика включает в себя также и дубликаты слов. Например \"Автомобиль -> Car\" и " +
-                "\"Car -> Автомобиль\" включены в данный список как два отдельных слова. \n\n" +
-                "Изученные слова: " + inRepeatingProcess.keySet().size() + "\n" +
-                "Слова на изучении: " + inLeaningProcess.keySet().size();
-    }
-
-    /* В случаях когда boolean переменная  leaningList true метод возвращает списов изучаемых слов.
-    В противном случае, повторяемых*/
-    public void getLeaningWordList(Message message, boolean leaningList) {
-        StringBuilder allWords = new StringBuilder();
-        String[] keys = leaningList ? inLeaningProcess.keySet().toArray(new String[0]) : inRepeatingProcess.keySet().toArray(new String[0]);
-        List<Word> usedWords = new ArrayList<>();
-        TelegramApiConnect telegramApiConnect = new TelegramApiConnect();
-
-        if (keys.length == 0){
-            telegramApiConnect.sendMessage(message, "\uD83D\uDE14  Ваш список пуст");
-            return;
-        }
-
-        for (String key : keys) {
-            Word word = leaningList ? inLeaningProcess.get(key) : inRepeatingProcess.get(key);
-            if (!usedWords.contains(word)){
-                usedWords.add(word);
-                allWords.append(word.getEnWord() + " - " + word.getRuWord() + "\n");
+            while (resultSet.next()) {
+                learningCount = resultSet.getInt("learning_count");
+                repetitionCount = resultSet.getInt("repetition_count");
+                learnedCount = resultSet.getInt("learned_count");
             }
-            if (allWords.length() >= 3900){
-                telegramApiConnect.sendMessage(message, allWords.toString());
-                allWords = new StringBuilder();
-            }
+
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
         }
-        if (allWords.length() > 0) {
-            telegramApiConnect.sendMessage(message, allWords.toString());
-        }
+
+        return "Изученные слова: " + learnedCount + "\n" +
+                "Слова на повторении: " + repetitionCount + "\n" +
+                "Слова на изучении: " + learningCount;
     }
 
     public static class IncorrectMenuSelectionException extends Exception {
