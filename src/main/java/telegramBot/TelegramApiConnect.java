@@ -121,6 +121,7 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
                 sendMessage(message, messageText);
             }
             case ("\uD83D\uDCC8 Статистика") -> {
+                User.setMenu(userId, "AllFalse");
                 sendMessage(message, User.getStatistic(userId));
             }
             default -> {
@@ -255,7 +256,7 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
         try (PreparedStatement ps = connection.prepareStatement(
                 "SELECT russian_word, english_word FROM words " +
                         "WHERE word_id = " +
-                        "(SELECT word_id FROM user_word_list " +
+                        "(SELECT word_id FROM user_word_lists " +
                         "WHERE user_id = ? AND list_type = " +
                         "(SELECT menu_name FROM user_menu " +
                         "WHERE user_id = ?) " +
@@ -381,6 +382,7 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
         return getKeyboard(chatId, true);
     }
 
+/*    Добавление клавиатуры под сообщение. параментр boolean определяет будет ли первая строчка в клавиатуре*/
     private InlineKeyboardMarkup getKeyboard(Long chatId, boolean deleteFirstLine) {
         List<List<InlineKeyboardButton>> keyboard = new ArrayList<>();
 
@@ -392,11 +394,13 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
             delete.setCallbackData("delete");
             keyboard.get(0).add(delete);
 
-            if (telegramBot.Main.userMap.get(chatId).isInLeaningMenu()) {
+            String userMenu = User.getUserMenu(chatId);
+
+            if (userMenu.equalsIgnoreCase("learning")) {
                 InlineKeyboardButton learned = new InlineKeyboardButton("\uD83E\uDDE0 Уже знаю это слово");
                 learned.setCallbackData("learned");
                 keyboard.get(0).add(learned);
-            } else if (telegramBot.Main.userMap.get(chatId).isInRepeatMenu()) {
+            } else if (userMenu.equalsIgnoreCase("repetition")) {
                 InlineKeyboardButton forgot = new InlineKeyboardButton("\uD83D\uDC68\uD83C\uDFFB\u200D\uD83C\uDF93 Снова изучать это слово");
                 forgot.setCallbackData("forgot");
                 keyboard.get(0).add(forgot);

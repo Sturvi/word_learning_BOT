@@ -94,12 +94,12 @@ public class Admin  implements Serializable {
     }
 
     private void getStatistic() {
-        String messageText = "Количество Пользователей: " + Main.userMap.keySet().size() + "\n" +
+        /*String messageText = "Количество Пользователей: " + Main.userMap.keySet().size() + "\n" +
                 "Количество Слов в Базе: " + AllWordBase.getWordBaseSize() / 2 + "\n\n" +
                 "Cлов в очереди на проверку: " + AdminsData.queueSize() +  "\n\n" +
                 "Слава КПСС";
 
-        sendTextMessage(messageText);
+        sendTextMessage(messageText);*/
     }
 
     private void wordsChecking() {
