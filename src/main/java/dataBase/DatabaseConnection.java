@@ -1,41 +1,51 @@
 package dataBase;
 
+import org.apache.log4j.Logger;
 import org.telegram.telegrambots.meta.api.objects.Message;
+
+import org.telegram.telegrambots.meta.api.objects.User;
+import telegramBot.NullCheck;
 
 import java.sql.*;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
-import java.util.TimeZone;
+
 
 public class DatabaseConnection {
     private static final String url = "jdbc:postgresql://185.125.200.162:5432/word_bot_db";
     private static final String username = "postgres";
     private static final String password = "56485648";
-    private static Connection connection;
+    private static Connection connection = null;
+    private static final Logger logger = Logger.getLogger(DatabaseConnection.class);
 
-    public static void connect() {
-        connection = null;
+
+    private static void connect() {
         try {
             connection = DriverManager.getConnection(url, username, password);
             System.out.println("Connection successful");
+            logger.info("Подключение к БД выполнено успешно.");
         } catch (SQLException e) {
-            System.out.println("Connection failed");
+            logger.error("Ошибка при подлючении к БД" + e);
             e.printStackTrace();
         }
     }
 
-    public static void checkUser(Message message) {
+    public static void checkUser(User user) {
+        NullCheck nullChecker = () -> logger;
+        nullChecker.checkForNull("checkUser", user);
+
         Connection connection = getConnection();
 
+
         if (connection == null) {
-            System.out.println("Ошибка подключения к Базе Данных");
+            logger.error("checkUser Ошибка подключения к БД. connection вернулся null");
             return;
         }
 
-        long user_id = message.getFrom().getId();
-        String first_name = message.getFrom().getFirstName();
-        String last_name = message.getFrom().getLastName();
-        String username = message.getFrom().getUserName();
+        long user_id = user.getId();
+        String first_name = user.getFirstName();
+        String last_name = user.getLastName();
+        String username = user.getUserName();
         LocalDateTime localDateTime = LocalDateTime.now(ZoneId.of("UTC"));
 
         try (PreparedStatement ps = connection.prepareStatement(
@@ -50,9 +60,9 @@ public class DatabaseConnection {
             ps.setString(4, username);
             ps.setTimestamp(5, Timestamp.valueOf(localDateTime));
             ps.executeUpdate();
-            System.out.println("User " + username + " has been added or updated in the database");
+            logger.info("Пользователь " + username + " добавлен/обновлен в БД");
         } catch (SQLException e) {
-            System.err.println("Error inserting/updating user: " + e.getMessage());
+            logger.error("Ошибка добавления/обновления пользователя в БД" + e);
         }
 
         try (PreparedStatement ps = connection.prepareStatement(
@@ -68,8 +78,12 @@ public class DatabaseConnection {
         }
     }
 
-
     public static Connection getConnection() {
+        if (connection == null) {
+            connect();
+        }
         return connection;
     }
+
+
 }

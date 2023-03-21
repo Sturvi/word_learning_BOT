@@ -1,24 +1,21 @@
 package telegramBot;
 
 import dataBase.DatabaseConnection;
+import org.apache.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.send.SendAudio;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageReplyMarkup;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
-import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
-import org.telegram.telegrambots.meta.api.objects.InputFile;
-import org.telegram.telegrambots.meta.api.objects.Message;
-import org.telegram.telegrambots.meta.api.objects.Update;
+import org.telegram.telegrambots.meta.api.objects.*;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardButton;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
-import telegramBot.user.User;
+import telegramBot.user.BotsUser;
 
 import java.io.File;
 import java.sql.Connection;
@@ -33,15 +30,28 @@ import java.util.Random;
 распледеляет задачи и отправляет сообщения пользователям*/
 public class TelegramApiConnect extends TelegramLongPollingBot {
 
+    private static final Logger logger = Logger.getLogger(TelegramApiConnect.class);
+
     @Override
     public void onUpdateReceived(Update update) {
+        logger.info("Пришел новый запрос от пользователя");
+        Message message;
 
-        DatabaseConnection.checkUser(update.getMessage());
+        User user;
+        if (update.getMessage() == null){
+            message = update.getCallbackQuery().getMessage();
+            user = update.getCallbackQuery().getFrom();
+        } else {
+            message = update.getMessage();
+            user = update.getMessage().getFrom();
+        }
+        Long chatId = message.getChatId();
 
-        Long chatId = update.getMessage() == null ? update.getCallbackQuery().getMessage().getChatId() : update.getMessage().getChatId();
+        DatabaseConnection.checkUser(user);
 
         //Если команда пришла от админа, ее обработка уходит в класс Админ
         if (chatId.equals(Main.admin.getChatID())) {
+            logger.info("Запрос пришел от админа");
             Main.admin.inputCommand(update);
             return;
         }
@@ -55,6 +65,7 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
 
     /*Оброботка нажаний на клавиши команд*/
     private void handleCallback(@NotNull CallbackQuery callbackQuery) {
+        logger.info("Начало обработки запроса в нажатие клавиши");
         Message message = callbackQuery.getMessage();
         Long userId = message.getChatId();
         String data = callbackQuery.getData();
@@ -63,18 +74,22 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
 
         switch (data) {
             case ("delete") -> {
-                User.removeWord(userId, text);
+                logger.info("Запрос на удаления слова");
+                BotsUser.removeWord(userId, text);
                 editKeyboardAfterDeleteMessage(callbackQuery);
             }
             case ("next") -> {
+                logger.info("Запрос на следующее слово");
                 getRandomWordAndSendToUser(message);
             }
             case ("learned") -> {
-                 User.changeWordListType(userId, "repetition", text);
+                logger.info("Запрос на перевод слова на выученное");
+                BotsUser.changeWordListType(userId, "repetition", text);
                 editKeyboardAfterLeanedOrForgot(callbackQuery);
             }
             case ("forgot") -> {
-                User.changeWordListType(userId, "learning", text);
+                logger.info("Запрос на перевод слова на снова изучаемое");
+                BotsUser.changeWordListType(userId, "learning", text);
                 editKeyboardAfterLeanedOrForgot(callbackQuery);
             }
         }
@@ -90,7 +105,7 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
                 sendMessage(message, "Добро пожаловать в наш бот по изучению английских слов.");
             }
             case ("\uD83D\uDDD2 Добавить слова") -> {
-                User.setMenu(userId, "inAddMenu");
+                BotsUser.setMenu(userId, "inAddMenu");
                 sendMessage(message, """
                         Можете отправлять слова, которые хотите добавить в свою коллекцию.\s
 
@@ -101,33 +116,33 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
                         Учтите, что слова переводятся автоматически, с помощью сервисов онлайн перевода и никак не проходят дополнительные проверки орфографии. Поэтому даже при небольших ошибках, перевод также будет ошибочный.""");
             }
             case ("\uD83D\uDC68\uD83C\uDFFB\u200D\uD83C\uDF93 Учить слова") -> {
-                User.setMenu(userId, "learning");
+                BotsUser.setMenu(userId, "learning");
                 getRandomWordAndSendToUser(message);
             }
             case ("\uD83D\uDD01 Повторять слова") -> {
-                User.setMenu(userId, "repetition");
+                BotsUser.setMenu(userId, "repetition");
                 getRandomWordAndSendToUser(message);
             }
             case ("\uD83D\uDCD3 Список изучаемых слов") -> {
-                User.setMenu(userId, "AllFalse");
-                String messageText = User.getWordList(userId, "learning");
+                BotsUser.setMenu(userId, "AllFalse");
+                String messageText = BotsUser.getWordList(userId, "learning");
                 if (messageText == null) messageText = "В вашем словаре нет слов на изучении";
                 sendMessage(message, messageText);
             }
             case ("\uD83D\uDCD3 Список слов на повторении") -> {
-                User.setMenu(userId, "AllFalse");
-                String messageText = User.getWordList(userId, "repetition");
+                BotsUser.setMenu(userId, "AllFalse");
+                String messageText = BotsUser.getWordList(userId, "repetition");
                 if (messageText == null) messageText = "В вашем словаре нет слов на повторении";
                 sendMessage(message, messageText);
             }
             case ("\uD83D\uDCC8 Статистика") -> {
-                User.setMenu(userId, "AllFalse");
-                sendMessage(message, User.getStatistic(userId));
+                BotsUser.setMenu(userId, "AllFalse");
+                sendMessage(message, BotsUser.getStatistic(userId));
             }
             default -> {
-                String menu = User.getUserMenu(userId);
+                String menu = BotsUser.getUserMenu(userId);
                 if (menu.equals("inAddMenu")) {
-                    sendMessage(message, User.add(InputMessageText, userId), true);
+                    sendMessage(message, BotsUser.add(InputMessageText, userId), true);
                 }
             }
         }
@@ -205,9 +220,10 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
 
     private void getRandomWordAndSendToUser(@NotNull Message message) {
         Long userId = message.getChatId();
-        String menu = getUserMenu(userId);
+        String menu = BotsUser.getUserMenu(userId);
 
         if (menu == null) {
+            logger.error("getRandomWordAndSendToUser Меню из БД вернулось null");
             sendMessage(message, "Что-то пошло не так. Мы сообщили об этом Администратору. Скоро все исправим!");
             return;
         } else if (!(menu.equals("learning") || menu.equals("repetition"))) {
@@ -215,7 +231,7 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
             return;
         }
 
-        Word word = getWord(userId);
+        Word word = Word.getWord(userId);
 
         if (menu.equals("learning") && word == null) {
             sendMessage(message, "У вас нет слов для изучения в данный момент. Пожалуйста, " +
@@ -232,51 +248,6 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
         sendWordWithVoice(word, message);
     }
 
-    private @Nullable String getUserMenu(Long userId) {
-        Connection connection = DatabaseConnection.getConnection();
-
-        try (PreparedStatement preparedStatement = connection.prepareStatement(
-                "SELECT menu_name FROM user_menu WHERE user_id = ?")) {
-            preparedStatement.setLong(1, userId);
-            ResultSet resultSet = preparedStatement.executeQuery();
-
-            if (resultSet.next())
-                return resultSet.getString("menu_name");
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
-        return null;
-    }
-
-    private @Nullable Word getWord(Long userId) {
-        Connection connection = DatabaseConnection.getConnection();
-
-        String russianWord = null;
-        String englishWord = null;
-        try (PreparedStatement ps = connection.prepareStatement(
-                "SELECT russian_word, english_word FROM words " +
-                        "WHERE word_id = " +
-                        "(SELECT word_id FROM user_word_lists " +
-                        "WHERE user_id = ? AND list_type = " +
-                        "(SELECT menu_name FROM user_menu " +
-                        "WHERE user_id = ?) " +
-                        "ORDER BY RANDOM() LIMIT 1)")) {
-            ps.setLong(1, userId);
-            ps.setLong(2, userId);
-            ResultSet resultSet = ps.executeQuery();
-
-            if (resultSet.next()) {
-                russianWord = resultSet.getString("russian_word");
-                englishWord = resultSet.getString("english_word");
-            }
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
-
-        if (russianWord != null && englishWord != null)
-            return new Word(englishWord, russianWord);
-        else return null;
-    }
 
     /*Данный метод отправляет пользователю слово c произношением. В случае невозможность получить аудио файл с произношением
     отправляет просто слово*/
@@ -293,7 +264,9 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
         File voice;
         try {
             voice = word.getVoice();
+            logger.info("Произношение слова успешно получено");
         } catch (Exception e) {
+            logger.error("sendWordWithVoice Ошибка получения произношения " + e);
             sendMessage(message, textForMessage, getKeyboard(message.getChatId()));
             return;
         }
@@ -329,24 +302,29 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
     }
 
     public void sendMessage(Message message, String text, boolean setReplyToMessageId) {
+        logger.info("Начало формирования объекта SendMessage");
         SendMessage sendMessage = new SendMessage();
         sendMessage.setText(text);
         sendMessage.setChatId(message.getChatId());
 
         if (setReplyToMessageId) {
             sendMessage.setReplyToMessageId(message.getMessageId());
+            logger.info("Отметка сообщения на которую отвечает выбрана");
         }
 
         setButtons(sendMessage);
+        logger.info("Все подготовки к отправке сообщения произведены");
         sendMsg(sendMessage);
     }
 
-    public void sendMsg(SendMessage sendMessage) {
+    public void sendMsg(@NotNull SendMessage sendMessage) {
         sendMessage.enableMarkdown(true);
         sendMessage.enableHtml(true);
         try {
             execute(sendMessage);
+            logger.info("Cообщение отправлено пользователю");
         } catch (TelegramApiException e) {
+            logger.error("sendMsg Ошибка отправки сообщения пользователю " + e);
             e.printStackTrace();
         }
     }
@@ -378,33 +356,36 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
         replyKeyboardMarkup.setKeyboard(keyboardRowList);
     }
 
-    private InlineKeyboardMarkup getKeyboard(Long chatId) {
+    private @NotNull InlineKeyboardMarkup getKeyboard(Long chatId) {
         return getKeyboard(chatId, true);
     }
 
-/*    Добавление клавиатуры под сообщение. параментр boolean определяет будет ли первая строчка в клавиатуре*/
-    private InlineKeyboardMarkup getKeyboard(Long chatId, boolean deleteFirstLine) {
+    /*    Добавление клавиатуры под сообщение. параментр boolean определяет будет ли первая строчка в клавиатуре*/
+    private InlineKeyboardMarkup getKeyboard(Long chatId, boolean firstLineInKeyboard) {
         List<List<InlineKeyboardButton>> keyboard = new ArrayList<>();
 
         keyboard.add(new ArrayList<>());
         keyboard.add(new ArrayList<>());
 
-        if (deleteFirstLine) {
+        if (firstLineInKeyboard) {
             InlineKeyboardButton delete = new InlineKeyboardButton("❌ Удалить это слово");
             delete.setCallbackData("delete");
             keyboard.get(0).add(delete);
 
-            String userMenu = User.getUserMenu(chatId);
+            String userMenu = BotsUser.getUserMenu(chatId);
 
             if (userMenu.equalsIgnoreCase("learning")) {
                 InlineKeyboardButton learned = new InlineKeyboardButton("\uD83E\uDDE0 Уже знаю это слово");
                 learned.setCallbackData("learned");
                 keyboard.get(0).add(learned);
+                logger.info("В клавиатуру добавлена кнопка \uD83E\uDDE0 Уже знаю это слово");
             } else if (userMenu.equalsIgnoreCase("repetition")) {
                 InlineKeyboardButton forgot = new InlineKeyboardButton("\uD83D\uDC68\uD83C\uDFFB\u200D\uD83C\uDF93 Снова изучать это слово");
                 forgot.setCallbackData("forgot");
                 keyboard.get(0).add(forgot);
+                logger.info("В клавиатуру добавлена кнопка \uD83D\uDC68\uD83C\uDFFB\u200D\uD83C\uDF93 Снова изучать это слово");
             }
+
         }
 
         InlineKeyboardButton next = new InlineKeyboardButton("➡ Следующее слово");

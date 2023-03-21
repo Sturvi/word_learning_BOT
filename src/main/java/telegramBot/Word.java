@@ -5,9 +5,16 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.microsoft.cognitiveservices.speech.*;
+import dataBase.DatabaseConnection;
 import okhttp3.*;
+import org.apache.log4j.Logger;
+import org.jetbrains.annotations.Nullable;
 
 import java.io.*;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Objects;
 
@@ -15,10 +22,48 @@ public class Word implements Serializable {
 
     private final String enWord;
     private final String ruWord;
+    private static final Logger logger = Logger.getLogger(Word.class);
+
 
     public Word(String enWord, String ruWord) {
         this.enWord = enWord;
         this.ruWord = ruWord;
+    }
+
+    static @Nullable Word getWord(Long userId) {
+        Connection connection = DatabaseConnection.getConnection();
+
+        if (connection == null) {
+            logger.error("getWord Ошибка подключения к БД. connection вернулся null");
+        }
+
+        String russianWord = null;
+        String englishWord = null;
+        try (PreparedStatement ps = connection.prepareStatement(
+                "SELECT russian_word, english_word FROM words " +
+                        "WHERE word_id = " +
+                        "(SELECT word_id FROM user_word_lists " +
+                        "WHERE user_id = ? AND list_type = " +
+                        "(SELECT menu_name FROM user_menu " +
+                        "WHERE user_id = ?) " +
+                        "ORDER BY RANDOM() LIMIT 1)")) {
+            ps.setLong(1, userId);
+            ps.setLong(2, userId);
+            ResultSet resultSet = ps.executeQuery();
+
+            if (resultSet.next()) {
+                russianWord = resultSet.getString("russian_word");
+                englishWord = resultSet.getString("english_word");
+            }
+            logger.info("Слово получено из БД получены");
+        } catch (SQLException e) {
+            logger.error("Ошибка получения слова из БД " + e);
+            throw new RuntimeException(e);
+        }
+
+        if (russianWord != null && englishWord != null)
+            return new Word(englishWord, russianWord);
+        else return null;
     }
 
     public String getEnWord() {
@@ -41,6 +86,7 @@ public class Word implements Serializable {
         File voice = new File("voice/" + getEnWord() + ".wav");
 
         if (!voice.exists()) {
+            logger.info("Файла произношения не нашлось. Отправка слова в TTS");
             createSpeech(getEnWord(), voice);
         }
 
@@ -69,20 +115,19 @@ public class Word implements Serializable {
             // Get the synthesized speech as an audio stream
             SpeechSynthesisResult result = speechSynthesizer.SpeakText(text);
 
-            System.out.println("text :"+text);
-            System.out.println("result.id :"+result.getResultId()+", result.resultReason : "+result.getReason()
+            logger.info("Слово " + text + "result.id :"+result.getResultId()+", result.resultReason : "+result.getReason()
                     + ", result.audioDuration : "+result.getAudioDuration()+", result.audioLength : "+result.getAudioLength());
 
             if (result.getAudioData() != null) {
                 FileOutputStream fos = new FileOutputStream(voice);
                 fos.write(result.getAudioData());
-                System.out.println("Audio data written to file: output.wav");
+                logger.info("Аудио файл записан в файл word.wav");
 
             } else {
-                System.out.println("Error getting audio data: ");
+                logger.error("Ошибка получения произношения из TTS");
             }
         }catch(Exception e){
-            e.printStackTrace();
+            logger.error(e);
             throw e;
         }
     }

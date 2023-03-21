@@ -1,6 +1,7 @@
 package telegramBot.user;
 
 import dataBase.DatabaseConnection;
+import org.apache.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -11,9 +12,12 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.*;
 
-public class User implements Serializable {
+public class BotsUser implements Serializable {
 
-    public User() {
+    private static final Logger logger = Logger.getLogger(BotsUser.class);
+
+
+    private BotsUser() {
 
     }
 
@@ -69,6 +73,9 @@ public class User implements Serializable {
     public static void changeWordListType(Long userId, String listType, @NotNull String textFromMessage) {
         Connection connection = DatabaseConnection.getConnection();
 
+        if (connection == null) logger.error("changeWordListType Ошибка подключения к БД. connection вернулся null");
+
+
         String[] word = textFromMessage.split("  -  ");
         word[0] = word[0].trim();
         word[1] = word[1].trim();
@@ -87,7 +94,9 @@ public class User implements Serializable {
             preparedStatement.setString(5, word[0]);
             preparedStatement.setString(6, word[1]);
             preparedStatement.execute();
+            logger.info("Слово успешно переведено в другой словарь пользователя");
         } catch (SQLException e) {
+            logger.error("Ошибка смены словаря в БД для пользователя" + e);
             throw new RuntimeException(e);
         }
     }
@@ -114,20 +123,23 @@ public class User implements Serializable {
         }
     }
 
-    public static String getUserMenu(Long userId) {
+    public static @Nullable String getUserMenu(Long userId) {
         Connection connection = DatabaseConnection.getConnection();
-        String result = null;
+
+        if (connection == null) logger.error("getUserMenu Ошибка подключения к БД. connection вернулся null");
+
         try (PreparedStatement preparedStatement = connection.prepareStatement(
                 "SELECT menu_name FROM user_menu WHERE user_id = ?")) {
             preparedStatement.setLong(1, userId);
             ResultSet resultSet = preparedStatement.executeQuery();
 
-            resultSet.next();
-            result = resultSet.getString("menu_name");
+            if (resultSet.next())
+                return resultSet.getString("menu_name");
         } catch (SQLException e) {
+            logger.error("Не удалось получить меню из БД" + e);
             throw new RuntimeException(e);
         }
-        return result;
+        return null;
     }
 
     public static void setMenu(Long userId, String menuName) {
