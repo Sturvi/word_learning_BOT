@@ -17,6 +17,7 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.Keyboard
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import telegramBot.user.BotsUser;
+import telegramBot.user.WordsInDatabase;
 
 import java.io.File;
 import java.sql.Connection;
@@ -80,7 +81,7 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
         switch (data) {
             case ("delete") -> {
                 logger.info("Запрос на удаления слова");
-                BotsUser.removeWord(userId, text);
+                WordsInDatabase.removeWord(userId, text);
                 editKeyboardAfterDeleteMessage(callbackQuery);
             }
             case ("next") -> {
@@ -89,12 +90,12 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
             }
             case ("learned") -> {
                 logger.info("Запрос на перевод слова на выученное");
-                BotsUser.changeWordListType(userId, "repetition", text);
+                WordsInDatabase.changeWordListType(userId, "repetition", text);
                 editKeyboardAfterLeanedOrForgot(callbackQuery);
             }
             case ("forgot") -> {
                 logger.info("Запрос на перевод слова на снова изучаемое");
-                BotsUser.changeWordListType(userId, "learning", text);
+                WordsInDatabase.changeWordListType(userId, "learning", text);
                 editKeyboardAfterLeanedOrForgot(callbackQuery);
             }
         }
@@ -131,13 +132,13 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
             }
             case ("\uD83D\uDCD3 Список изучаемых слов") -> {
                 BotsUser.setMenu(userId, "AllFalse");
-                String messageText = BotsUser.getWordList(userId, "learning");
+                String messageText = WordsInDatabase.getWordList(userId, "learning");
                 if (messageText == null) messageText = "В вашем словаре нет слов на изучении";
                 sendMessage(message, messageText);
             }
             case ("\uD83D\uDCD3 Список слов на повторении") -> {
                 BotsUser.setMenu(userId, "AllFalse");
-                String messageText = BotsUser.getWordList(userId, "repetition");
+                String messageText = WordsInDatabase.getWordList(userId, "repetition");
                 if (messageText == null) messageText = "В вашем словаре нет слов на повторении";
                 sendMessage(message, messageText);
             }
@@ -150,7 +151,7 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
                 assert menu != null;
                 if (menu.equals("inAddMenu")) {
                     try {
-                        sendMessage(message, BotsUser.add(InputMessageText, userId), true);
+                        sendMessage(message, WordsInDatabase.add(InputMessageText, userId), true);
                     } catch (TranslationException e) {
                         sendMessage(message, "К сожалению нам не удалось корректно перевести данное слово. " +
                                 "Сообщение об ошибке уже отправлено администратору. В скором времени ошибка будет исправлена. " +
