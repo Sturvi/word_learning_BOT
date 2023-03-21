@@ -16,7 +16,7 @@ public class Main {
     public static void main(String[] args) {
         logger.info("Запуск программы");
 
-        TelegramBotsApi telegramBotsApi = null;
+        TelegramBotsApi telegramBotsApi;
         try {
             telegramBotsApi = new TelegramBotsApi(DefaultBotSession.class);
             telegramBotsApi.registerBot(new TelegramApiConnect());

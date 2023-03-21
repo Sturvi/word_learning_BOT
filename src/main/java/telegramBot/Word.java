@@ -1,5 +1,6 @@
 package telegramBot;
 
+import Exceptions.TranslationException;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -16,26 +17,20 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
-import java.util.Objects;
 
-public class Word implements Serializable {
+public record Word(String enWord, String ruWord) implements Serializable {
 
-    private final String enWord;
-    private final String ruWord;
     private static final Logger logger = Logger.getLogger(Word.class);
 
 
-    public Word(String enWord, String ruWord) {
-        this.enWord = enWord;
-        this.ruWord = ruWord;
-    }
-
+    /*Получение случайного слова из БД словаря пользователя.*/
     static @Nullable Word getWord(Long userId) {
-        Connection connection = DatabaseConnection.getConnection();
+        NullCheck nullCheck = () -> logger;
+        nullCheck.checkForNull("getWord ", userId);
 
-        if (connection == null) {
-            logger.error("getWord Ошибка подключения к БД. connection вернулся null");
-        }
+        Connection connection = DatabaseConnection.getConnection();
+        nullCheck.checkForNull("getWord connection ", connection);
+
 
         String russianWord = null;
         String englishWord = null;
@@ -66,14 +61,6 @@ public class Word implements Serializable {
         else return null;
     }
 
-    public String getEnWord() {
-        return enWord;
-    }
-
-    public String getRuWord() {
-        return ruWord;
-    }
-
     /*Данный метод при запросе возвращает объект File по адресу которого находится аудио файл с английской озвучкой слова.
      * В первую очередь проверяет среди уже сохраненных слов. Если не найдено отправляет в TTS*/
     public File getVoice() throws Exception {
@@ -83,24 +70,26 @@ public class Word implements Serializable {
             directory.mkdirs();
         }
 
-        File voice = new File("voice/" + getEnWord() + ".wav");
+        File voice = new File("voice/" + enWord() + ".wav");
 
         if (!voice.exists()) {
             logger.info("Файла произношения не нашлось. Отправка слова в TTS");
-            createSpeech(getEnWord(), voice);
+            createSpeech(enWord(), voice);
         }
 
         return voice;
     }
 
-    /*Данный метод принимает String который нужно озвучить и File по адресу которого должен находится айдиофайл с
-     * извучкой. Посылает данный текст в Microsoft TTS и полученный результат сохраняет по адресу в объекте File*/
+    /*Данный метод принимает String который нужно озвучить и "File" по адресу которого должен находится аудиофайл с
+     * озвучкой. Посылает данный текст в Microsoft TTS и полученный результат сохраняет по адресу в объекте File*/
     private void createSpeech(String text, File voice) throws Exception {
+        NullCheck nullCheck = () -> logger;
+        nullCheck.checkForNull("createSpeech ", text, voice);
         // Replace with your own subscription key and region
         String subscriptionKey = "e2c7953181e04a5cb85981e5a309d7f4";
         String serviceRegion = "germanywestcentral";
 
-        try{
+        try (FileOutputStream fos = new FileOutputStream(voice)) {
 
             SpeechConfig speechConfig = SpeechConfig.fromSubscription(subscriptionKey, serviceRegion);
 
@@ -115,26 +104,26 @@ public class Word implements Serializable {
             // Get the synthesized speech as an audio stream
             SpeechSynthesisResult result = speechSynthesizer.SpeakText(text);
 
-            logger.info("Слово " + text + "result.id :"+result.getResultId()+", result.resultReason : "+result.getReason()
-                    + ", result.audioDuration : "+result.getAudioDuration()+", result.audioLength : "+result.getAudioLength());
+            logger.info("Слово " + text + "result.id :" + result.getResultId() + ", result.resultReason : " + result.getReason()
+                    + ", result.audioDuration : " + result.getAudioDuration() + ", result.audioLength : " + result.getAudioLength());
 
             if (result.getAudioData() != null) {
-                FileOutputStream fos = new FileOutputStream(voice);
                 fos.write(result.getAudioData());
                 logger.info("Аудио файл записан в файл word.wav");
-
             } else {
                 logger.error("Ошибка получения произношения из TTS");
             }
-        }catch(Exception e){
-            logger.error(e);
+        } catch (Exception e) {
+            logger.error("Ошибка получения произношения из TTS " + e);
             throw e;
         }
     }
 
-    /*Данный метод принимает String отправляет его в Microsoft TranslatorAPi получает перевод
+    /*Данный метод принимает String и отправляет его в Microsoft TranslatorAPi получает перевод
     и возвращает его в виде ArrayList, где первый элемент это слово на английском, второй элемент на русском*/
-    public static ArrayList<String> translate(String word) {
+    public static ArrayList<String> translate(String word) throws TranslationException {
+        NullCheck nullCheck = () -> logger;
+        nullCheck.checkForNull("translate", word);
         String key = "9a7b89f2526247049ab6ec3980ae56a8";
         String location = "germanywestcentral";
         OkHttpClient client = new OkHttpClient();
@@ -155,8 +144,11 @@ public class Word implements Serializable {
 
         try {
             response = client.newCall(request).execute();
+            assert response.body() != null;
             jsonString = response.body().string();
+            logger.info("Перевод слова из переводчика удачно получен");
         } catch (IOException e) {
+            logger.error("Ошибка получения слова из переводчика. " + e);
             throw new RuntimeException(e);
         }
 
@@ -172,6 +164,11 @@ public class Word implements Serializable {
             result.add(translationObject.get("text").getAsString());
         }
 
+        if (!(word.equals(result.get(0)) || word.equals(result.get(1)))) {
+            logger.error("ПРИШЕЛ НЕКОРЕКТНЫЙ ПЕРЕВОД НА СЛОВО '" + word + "'");
+            throw new TranslationException();
+        }
+
         return result;
     }
 
@@ -183,8 +180,4 @@ public class Word implements Serializable {
         return enWord.equals(word.enWord) && ruWord.equals(word.ruWord);
     }
 
-    @Override
-    public int hashCode() {
-        return Objects.hash(enWord, ruWord);
-    }
 }

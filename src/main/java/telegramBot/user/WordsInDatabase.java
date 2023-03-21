@@ -1,5 +1,6 @@
 package telegramBot.user;
 
+import Exceptions.TranslationException;
 import dataBase.DatabaseConnection;
 import telegramBot.Word;
 
@@ -28,7 +29,7 @@ public class WordsInDatabase extends DatabaseConnection {
         }
     }
 
-    static void addNewWordToDBFromTranslator (String word, Set<Integer> wordId) {
+    static void addNewWordToDBFromTranslator (String word, Set<Integer> wordId) throws TranslationException {
         Connection connection = getConnection();
         List<String> translatorResult = Word.translate(word);
         try {

@@ -1,6 +1,5 @@
 package admin;
 
-import org.checkerframework.checker.units.qual.A;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageReplyMarkup;
 import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
@@ -12,8 +11,6 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKe
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardButton;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
-import telegramBot.AllWordBase;
-import telegramBot.Main;
 import telegramBot.TelegramApiConnect;
 import telegramBot.Word;
 
@@ -70,7 +67,7 @@ public class Admin  implements Serializable {
                     .replaceAll("Ru: ", "").split("\n");
 
             Word word = new Word(textInMessage[0], textInMessage[1]);
-            AllWordBase.add(word);
+            //AllWordBase.add(word);
 
             editKeyboardAfterDecided(callbackQuery);
             AdminsData.removeWord();
@@ -109,7 +106,7 @@ public class Admin  implements Serializable {
         } else {
             TelegramApiConnect telegramApiConnect = new TelegramApiConnect();
             SendMessage sendMessage = new SendMessage();
-            sendMessage.setText("Eng: " + word.getEnWord() + "\nRu: " + word.getRuWord());
+            sendMessage.setText("Eng: " + word.enWord() + "\nRu: " + word.ruWord());
             sendMessage.setChatId(getChatID());
             sendMessage.setReplyMarkup(getWordCheckKeyboard(false));
             telegramApiConnect.sendMsg(sendMessage);

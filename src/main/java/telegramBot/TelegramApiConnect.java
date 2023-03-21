@@ -1,5 +1,6 @@
 package telegramBot;
 
+import Exceptions.TranslationException;
 import dataBase.DatabaseConnection;
 import org.apache.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
@@ -27,7 +28,7 @@ import java.util.List;
 import java.util.Random;
 
 /*Данный класс подключается к телеграмм боту, принимает обновления,
-распледеляет задачи и отправляет сообщения пользователям*/
+распределяет задачи и отправляет сообщения пользователям*/
 public class TelegramApiConnect extends TelegramLongPollingBot {
 
     private static final Logger logger = Logger.getLogger(TelegramApiConnect.class);
@@ -67,7 +68,7 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
         }
     }
 
-    /*Оброботка нажаний на клавиши команд*/
+    /*Обработка нажатий на клавиши команд*/
     private void handleCallback(@NotNull CallbackQuery callbackQuery) {
         logger.info("Начало обработки запроса в нажатие клавиши");
         Message message = callbackQuery.getMessage();
@@ -99,7 +100,7 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
         }
     }
 
-    /*Оброботка текстовых команд или в случае, если пользователь присылает слова на добавление в словарь*/
+    /*Обработка текстовых команд или в случае, если пользователь присылает слова на добавление в словарь*/
     private void handleTextMessage(@NotNull Message message) {
         NullCheck nullCheck = () -> logger;
         nullCheck.checkForNull("handleTextMessage ", message);
@@ -108,9 +109,7 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
         Long userId = message.getChatId();
 
         switch (InputMessageText) {
-            case ("/start") -> {
-                sendMessage(message, "Добро пожаловать в наш бот по изучению английских слов.");
-            }
+            case ("/start") -> sendMessage(message, "Добро пожаловать в наш бот по изучению английских слов.");
             case ("\uD83D\uDDD2 Добавить слова") -> {
                 BotsUser.setMenu(userId, "inAddMenu");
                 sendMessage(message, """
@@ -148,13 +147,22 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
             }
             default -> {
                 String menu = BotsUser.getUserMenu(userId);
+                assert menu != null;
                 if (menu.equals("inAddMenu")) {
-                    sendMessage(message, BotsUser.add(InputMessageText, userId), true);
+                    try {
+                        sendMessage(message, BotsUser.add(InputMessageText, userId), true);
+                    } catch (TranslationException e) {
+                        sendMessage(message, "К сожалению нам не удалось корректно перевести данное слово. " +
+                                "Сообщение об ошибке уже отправлено администратору. В скором времени ошибка будет исправлена. " +
+                                "Эта ошибка не помешает вам добавлять и изучать другие слова");
+                        throw new RuntimeException(e);
+                    }
                 }
             }
         }
     }
 
+    /*Изменение клавиатуры после смены словаря*/
     private void editKeyboardAfterLeanedOrForgot(CallbackQuery callbackQuery) {
         NullCheck nullCheck = () -> logger;
         nullCheck.checkForNull("editKeyboardAfterLeanedOrForgot", callbackQuery);
@@ -167,7 +175,7 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
 
         InlineKeyboardMarkup keyboard = getKeyboard(message.getChatId());
 
-        String[] texts = message.getText().split("  -  ");
+        String[] texts = message.getText().split(" {2}- {2}");
         nullCheck.checkForNull("editKeyboardAfterLeanedOrForgot", texts[0], texts[1]);
         texts[0] = texts[0].trim();
         texts[1] = texts[1].trim();
@@ -198,6 +206,7 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
             throw new RuntimeException(e);
         }
 
+        assert list_type != null;
         if (list_type.equalsIgnoreCase("repetition")) {
             InlineKeyboardButton forgot = new InlineKeyboardButton("\uD83D\uDC68\uD83C\uDFFB\u200D\uD83C\uDF93 Снова изучать это слово");
             forgot.setCallbackData("forgot");
@@ -221,9 +230,13 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
         }
     }
 
+    /*Изменение клавиатуры после удаления слова из словаря*/
     private void editKeyboardAfterDeleteMessage(CallbackQuery callbackQuery) {
+        NullCheck nullCheck = () -> logger;
+        nullCheck.checkForNull("editKeyboardAfterDeleteMessage", callbackQuery);
         Message message = callbackQuery.getMessage();
         String[] text = message.getText().split(" - ");
+        nullCheck.checkForNull("editKeyboardAfterDeleteMessage word ", text[0]);
 
         EditMessageText editMessageText = new EditMessageText();
         editMessageText.setMessageId(message.getMessageId());
@@ -231,13 +244,17 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
         editMessageText.setText("Слово " + text[0] + " удалено из вашего словаря");
         editMessageText.setReplyMarkup(getKeyboard(message.getChatId(), false));
 
+        logger.info("Изменения клавиатуры после удаления слова готовы.");
         try {
             execute(editMessageText);
+            logger.info("Изменения клавиатуры после удаления слова отправлены успешно");
         } catch (TelegramApiException e) {
+            logger.error("Ошибка отправки изменений клавиатуры после удаления слова " + e);
             throw new RuntimeException(e);
         }
     }
 
+    /*Получение случайного слова из БД и отправка пользователю*/
     private void getRandomWordAndSendToUser(@NotNull Message message) {
         NullCheck nullCheck = () -> logger;
         nullCheck.checkForNull("getRandomWordAndSendToUser", message);
@@ -271,7 +288,7 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
     }
 
 
-    /*Данный метод отправляет пользователю слово c произношением. В случае невозможность получить аудио файл с произношением
+    /*Данный метод отправляет пользователю слово с произношением. В случае невозможность получить аудио файл с произношением
     отправляет просто слово*/
     private void sendWordWithVoice(Word word, Message message) {
         NullCheck nullCheck = () -> logger;
@@ -280,9 +297,9 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
         int random = new Random().nextInt(2);
 
         if (random == 0) {
-            textForMessage = word.getEnWord() + "  -  <span class='tg-spoiler'>   " + word.getRuWord() + "   </span>";
+            textForMessage = word.enWord() + "  -  <span class='tg-spoiler'>   " + word.ruWord() + "   </span>";
         } else {
-            textForMessage = word.getRuWord() + "  -  <span class='tg-spoiler'>   " + word.getEnWord() + "   </span>";
+            textForMessage = word.ruWord() + "  -  <span class='tg-spoiler'>   " + word.enWord() + "   </span>";
         }
 
         File voice;
@@ -311,12 +328,12 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
         sendMessage(message, textForMessage, getKeyboard(message.getChatId()));
     }
 
-    /*Отправка обычных тектовых сообщений.*/
+    /*Отправка обычных текстовых сообщений.*/
     public void sendMessage(Message message, String text) {
         sendMessage(message, text, false);
     }
 
-    /*Отправка обычных текcтовых сообщений с привязкой клавиатуры.*/
+    /*Отправка обычных текстовых сообщений с привязкой клавиатуры.*/
     public void sendMessage(Message message, String text, InlineKeyboardMarkup inlineKeyboardMarkup) {
         logger.info("Начало формирования объекта SendMessage");
         SendMessage sendMessage = new SendMessage();
@@ -358,6 +375,8 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
 
     /*Нижние клавиши*/
     public void setButtons(SendMessage sendMessage) {
+        NullCheck nullCheck = () -> logger;
+        nullCheck.checkForNull("setButtons", sendMessage);
         ReplyKeyboardMarkup replyKeyboardMarkup = new ReplyKeyboardMarkup();
         sendMessage.setReplyMarkup(replyKeyboardMarkup);
         replyKeyboardMarkup.setSelective(true);
@@ -381,14 +400,20 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
         keyboardRowList.add(keyboardThirdRow);
 
         replyKeyboardMarkup.setKeyboard(keyboardRowList);
+        logger.info("Нижние кнопки успешно прикреплены к сообщению");
     }
 
+    /*Прикрепление кнопок под сообщением с первой строчкой по умолчанию*/
     private @NotNull InlineKeyboardMarkup getKeyboard(Long chatId) {
+        NullCheck nullCheck = () -> logger;
+        nullCheck.checkForNull("getKeyboard", chatId);
         return getKeyboard(chatId, true);
     }
 
-    /*    Добавление клавиатуры под сообщение. параментр boolean определяет будет ли первая строчка в клавиатуре*/
-    private InlineKeyboardMarkup getKeyboard(Long chatId, boolean firstLineInKeyboard) {
+    /*    Добавление клавиатуры под сообщение. Параметр boolean определяет, будет ли первая строчка в клавиатуре*/
+    private InlineKeyboardMarkup getKeyboard(Long chatId, Boolean firstLineInKeyboard) {
+        NullCheck nullCheck = () -> logger;
+        nullCheck.checkForNull("getKeyboard", chatId, firstLineInKeyboard);
         List<List<InlineKeyboardButton>> keyboard = new ArrayList<>();
 
         keyboard.add(new ArrayList<>());
@@ -401,6 +426,7 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
 
             String userMenu = BotsUser.getUserMenu(chatId);
 
+            assert userMenu != null;
             if (userMenu.equalsIgnoreCase("learning")) {
                 InlineKeyboardButton learned = new InlineKeyboardButton("\uD83E\uDDE0 Уже знаю это слово");
                 learned.setCallbackData("learned");

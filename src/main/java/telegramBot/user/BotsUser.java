@@ -1,5 +1,6 @@
 package telegramBot.user;
 
+import Exceptions.TranslationException;
 import dataBase.DatabaseConnection;
 import org.apache.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
@@ -87,25 +88,28 @@ public class BotsUser implements Serializable {
             if (connection == null) logger.error("changeWordListType Ошибка подключения к БД. connection вернулся null");
 
 
-            String[] word = textFromMessage.split("  -  ");
+            String[] word = textFromMessage.split(" {2}- {2}");
             word[0] = word[0].trim();
             word[1] = word[1].trim();
 
-            try (PreparedStatement preparedStatement = connection.prepareStatement(
-                    "UPDATE user_word_lists " +
-                            "SET list_type = ? " +
-                            "WHERE user_id = ? AND word_id = " +
-                            "(SELECT word_id FROM words " +
-                            "WHERE (russian_word = ? AND english_word = ?) " +
-                            "OR (english_word = ? AND russian_word = ?))")) {
-                preparedStatement.setString(1, listType);
-                preparedStatement.setLong(2, userId);
-                preparedStatement.setString(3, word[0]);
-                preparedStatement.setString(4, word[1]);
-                preparedStatement.setString(5, word[0]);
-                preparedStatement.setString(6, word[1]);
-                preparedStatement.execute();
-                logger.info("Слово успешно переведено в другой словарь пользователя");
+            try {
+                assert connection != null;
+                try (PreparedStatement preparedStatement = connection.prepareStatement(
+                        "UPDATE user_word_lists " +
+                                "SET list_type = ? " +
+                                "WHERE user_id = ? AND word_id = " +
+                                "(SELECT word_id FROM words " +
+                                "WHERE (russian_word = ? AND english_word = ?) " +
+                                "OR (english_word = ? AND russian_word = ?))")) {
+                    preparedStatement.setString(1, listType);
+                    preparedStatement.setLong(2, userId);
+                    preparedStatement.setString(3, word[0]);
+                    preparedStatement.setString(4, word[1]);
+                    preparedStatement.setString(5, word[0]);
+                    preparedStatement.setString(6, word[1]);
+                    preparedStatement.execute();
+                    logger.info("Слово успешно переведено в другой словарь пользователя");
+                }
             } catch (SQLException e) {
                 logger.error("Ошибка смены словаря в БД для пользователя" + e);
                 throw new RuntimeException(e);
@@ -116,7 +120,7 @@ public class BotsUser implements Serializable {
         }
     }
 
-    public static String add(@NotNull String word, Long userId) {
+    public static String add(@NotNull String word, Long userId) throws TranslationException {
         if (word.length() > 1 || word.equalsIgnoreCase("i")) {
             Set<Integer> wordId = new HashSet<>();
             WordsInDatabase.checkNewWordInDB(word, wordId);
@@ -143,13 +147,16 @@ public class BotsUser implements Serializable {
 
         if (connection == null) logger.error("getUserMenu Ошибка подключения к БД. connection вернулся null");
 
-        try (PreparedStatement preparedStatement = connection.prepareStatement(
-                "SELECT menu_name FROM user_menu WHERE user_id = ?")) {
-            preparedStatement.setLong(1, userId);
-            ResultSet resultSet = preparedStatement.executeQuery();
+        try {
+            assert connection != null;
+            try (PreparedStatement preparedStatement = connection.prepareStatement(
+                    "SELECT menu_name FROM user_menu WHERE user_id = ?")) {
+                preparedStatement.setLong(1, userId);
+                ResultSet resultSet = preparedStatement.executeQuery();
 
-            if (resultSet.next())
-                return resultSet.getString("menu_name");
+                if (resultSet.next())
+                    return resultSet.getString("menu_name");
+            }
         } catch (SQLException e) {
             logger.error("Не удалось получить меню из БД" + e);
             throw new RuntimeException(e);
@@ -208,8 +215,5 @@ public class BotsUser implements Serializable {
         return "Изученные слова: " + learnedCount + "\n" +
                 "Слова на повторении: " + repetitionCount + "\n" +
                 "Слова на изучении: " + learningCount;
-    }
-
-    public static class IncorrectMenuSelectionException extends Exception {
     }
 }
