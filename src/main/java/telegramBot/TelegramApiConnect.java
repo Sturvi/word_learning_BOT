@@ -34,32 +34,36 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
 
     @Override
     public void onUpdateReceived(Update update) {
-        logger.info("Пришел новый запрос от пользователя");
-        Message message;
+        try {
+            logger.info("Пришел новый запрос от пользователя");
+            Message message;
 
-        User user;
-        if (update.getMessage() == null){
-            message = update.getCallbackQuery().getMessage();
-            user = update.getCallbackQuery().getFrom();
-        } else {
-            message = update.getMessage();
-            user = update.getMessage().getFrom();
-        }
-        Long chatId = message.getChatId();
+            User user;
+            if (update.getMessage() == null) {
+                message = update.getCallbackQuery().getMessage();
+                user = update.getCallbackQuery().getFrom();
+            } else {
+                message = update.getMessage();
+                user = update.getMessage().getFrom();
+            }
+            Long chatId = message.getChatId();
 
-        DatabaseConnection.checkUser(user);
+            DatabaseConnection.checkUser(user);
 
-        //Если команда пришла от админа, ее обработка уходит в класс Админ
-        if (chatId.equals(Main.admin.getChatID())) {
-            logger.info("Запрос пришел от админа");
-            Main.admin.inputCommand(update);
-            return;
-        }
+            //Если команда пришла от админа, ее обработка уходит в класс Админ
+            if (chatId.equals(Main.admin.getChatID())) {
+                logger.info("Запрос пришел от админа");
+                Main.admin.inputCommand(update);
+                return;
+            }
 
-        if (update.hasCallbackQuery()) {
-            handleCallback(update.getCallbackQuery());
-        } else {
-            handleTextMessage(update.getMessage());
+            if (update.hasCallbackQuery()) {
+                handleCallback(update.getCallbackQuery());
+            } else {
+                handleTextMessage(update.getMessage());
+            }
+        } catch (Exception e) {
+            logger.error("ГДЕТО ОШИБКА! " + e + " " + update);
         }
     }
 
@@ -97,6 +101,9 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
 
     /*Оброботка текстовых команд или в случае, если пользователь присылает слова на добавление в словарь*/
     private void handleTextMessage(@NotNull Message message) {
+        NullCheck nullCheck = () -> logger;
+        nullCheck.checkForNull("handleTextMessage ", message);
+
         String InputMessageText = message.getText();
         Long userId = message.getChatId();
 
@@ -149,6 +156,10 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
     }
 
     private void editKeyboardAfterLeanedOrForgot(CallbackQuery callbackQuery) {
+        NullCheck nullCheck = () -> logger;
+        nullCheck.checkForNull("editKeyboardAfterLeanedOrForgot", callbackQuery);
+
+        logger.info("Начало редактирования клавиатуры под сообщениями");
         Message message = callbackQuery.getMessage();
         EditMessageReplyMarkup editMessageReplyMarkup = new EditMessageReplyMarkup();
         editMessageReplyMarkup.setChatId(message.getChatId());
@@ -156,15 +167,17 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
 
         InlineKeyboardMarkup keyboard = getKeyboard(message.getChatId());
 
-        String[] texts = message.getText().split(" - ");
+        String[] texts = message.getText().split("  -  ");
+        nullCheck.checkForNull("editKeyboardAfterLeanedOrForgot", texts[0], texts[1]);
         texts[0] = texts[0].trim();
         texts[1] = texts[1].trim();
+
 
         Long userId = message.getChatId();
         Connection connection = DatabaseConnection.getConnection();
         String list_type = null;
         try (PreparedStatement preparedStatement = connection.prepareStatement(
-                "SELECT list_type FROM user_word_list WHERE user_id = ? AND word_id = " +
+                "SELECT list_type FROM user_word_lists WHERE user_id = ? AND word_id = " +
                         "(SELECT word_id FROM words " +
                         " WHERE (russian_word = ? AND english_word = ?) " +
                         " OR (russian_word = ? AND english_word = ?))")) {
@@ -174,11 +187,14 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
             preparedStatement.setString(4, texts[1]);
             preparedStatement.setString(5, texts[0]);
             ResultSet resultSet = preparedStatement.executeQuery();
+            nullCheck.checkForNull("editKeyboardAfterLeanedOrForgot", resultSet);
 
             while (resultSet.next()) {
                 list_type = resultSet.getString("list_type");
+                logger.info("list_type Получен из БД");
             }
         } catch (SQLException e) {
+            logger.error("editKeyboardAfterLeanedOrForgot Ошибка получения list_type из БД");
             throw new RuntimeException(e);
         }
 
@@ -186,17 +202,21 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
             InlineKeyboardButton forgot = new InlineKeyboardButton("\uD83D\uDC68\uD83C\uDFFB\u200D\uD83C\uDF93 Снова изучать это слово");
             forgot.setCallbackData("forgot");
             keyboard.getKeyboard().get(0).set(1, forgot);
+            logger.info("Изменения в клавиатуре произведены");
         } else if (list_type.equalsIgnoreCase("learning")) {
             InlineKeyboardButton learned = new InlineKeyboardButton("\uD83E\uDDE0 Уже знаю это слово");
             learned.setCallbackData("learned");
             keyboard.getKeyboard().get(0).set(1, learned);
+            logger.info("Изменения в клавиатуре произведены");
         }
 
         editMessageReplyMarkup.setReplyMarkup(keyboard);
 
         try {
             execute(editMessageReplyMarkup);
+            logger.info("Изменения клавиатуры отправлены");
         } catch (TelegramApiException e) {
+            logger.error("editKeyboardAfterLeanedOrForgot Ошибка отправки изменений клавиатуры");
             throw new RuntimeException(e);
         }
     }
@@ -219,6 +239,8 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
     }
 
     private void getRandomWordAndSendToUser(@NotNull Message message) {
+        NullCheck nullCheck = () -> logger;
+        nullCheck.checkForNull("getRandomWordAndSendToUser", message);
         Long userId = message.getChatId();
         String menu = BotsUser.getUserMenu(userId);
 
@@ -252,13 +274,15 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
     /*Данный метод отправляет пользователю слово c произношением. В случае невозможность получить аудио файл с произношением
     отправляет просто слово*/
     private void sendWordWithVoice(Word word, Message message) {
+        NullCheck nullCheck = () -> logger;
+        nullCheck.checkForNull("sendWordWithVoice ", word, message);
         String textForMessage;
         int random = new Random().nextInt(2);
 
         if (random == 0) {
-            textForMessage = word.getEnWord() + " -  <span class='tg-spoiler'>   " + word.getRuWord() + "   </span>";
+            textForMessage = word.getEnWord() + "  -  <span class='tg-spoiler'>   " + word.getRuWord() + "   </span>";
         } else {
-            textForMessage = word.getRuWord() + " -  <span class='tg-spoiler'>   " + word.getEnWord() + "   </span>";
+            textForMessage = word.getRuWord() + "  -  <span class='tg-spoiler'>   " + word.getEnWord() + "   </span>";
         }
 
         File voice;
@@ -279,8 +303,9 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
 
         try {
             execute(audio);
+            logger.info("Произношение удачно отправлено");
         } catch (TelegramApiException e) {
-            throw new RuntimeException(e);
+            logger.error("Не удалось отправить произношение " + e);
         }
 
         sendMessage(message, textForMessage, getKeyboard(message.getChatId()));
@@ -291,13 +316,15 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
         sendMessage(message, text, false);
     }
 
-    /*Отправка обычных тектовых сообщений с привязкой клавиатуры.*/
+    /*Отправка обычных текcтовых сообщений с привязкой клавиатуры.*/
     public void sendMessage(Message message, String text, InlineKeyboardMarkup inlineKeyboardMarkup) {
+        logger.info("Начало формирования объекта SendMessage");
         SendMessage sendMessage = new SendMessage();
         sendMessage.setChatId(message.getChatId());
         sendMessage.setText(text);
         sendMessage.setReplyMarkup(inlineKeyboardMarkup);
 
+        logger.info("Все подготовки к отправке сообщения произведены");
         sendMsg(sendMessage);
     }
 

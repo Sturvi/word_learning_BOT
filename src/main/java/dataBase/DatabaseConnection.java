@@ -23,7 +23,7 @@ public class DatabaseConnection {
         try {
             connection = DriverManager.getConnection(url, username, password);
             System.out.println("Connection successful");
-            logger.info("Подключение к БД выполнено успешно.");
+            logger.info("НОВОЕ подключение к БД выполнено успешно.");
         } catch (SQLException e) {
             logger.error("Ошибка при подлючении к БД" + e);
             e.printStackTrace();
@@ -72,9 +72,8 @@ public class DatabaseConnection {
             ps.setLong(1, user_id);
             ps.setString(2, "NULL");
             ps.executeUpdate();
-            System.out.println("User " + username + " menu selected");
         } catch (SQLException e) {
-            System.err.println("Error inserting user menu: " + e.getMessage());
+            logger.error("Ошибка в добавлении меню по умолчанию в БД " + e);
         }
     }
 

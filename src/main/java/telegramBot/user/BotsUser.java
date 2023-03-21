@@ -4,6 +4,7 @@ import dataBase.DatabaseConnection;
 import org.apache.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import telegramBot.NullCheck;
 
 import java.io.Serializable;
 import java.sql.Connection;
@@ -22,22 +23,26 @@ public class BotsUser implements Serializable {
     }
 
     public static @Nullable String getWordList(Long userId, String list_type) {
+        NullCheck nullCheck = () -> logger;
+        nullCheck.checkForNull("getWordList ", userId, list_type);
         Connection connection = DatabaseConnection.getConnection();
+        nullCheck.checkForNull("getWordList Connection ", connection);
         StringBuilder stringBuilder = new StringBuilder();
 
         try (PreparedStatement preparedStatement = connection.prepareStatement(
                 "SELECT russian_word, english_word FROM words WHERE word_id IN (" +
-                        "SELECT word_id FROM user_word_list WHERE user_id = ? AND list_type = ?)"
+                        "SELECT word_id FROM user_word_lists WHERE user_id = ? AND list_type = ?)"
         )) {
             preparedStatement.setLong(1, userId);
             preparedStatement.setString(2, list_type);
             ResultSet resultSet = preparedStatement.executeQuery();
             while (resultSet.next()) {
-                String russianWord = resultSet.getString("russian_word");
                 String englishWord = resultSet.getString("english_word");
+                String russianWord = resultSet.getString("russian_word");
                 stringBuilder.append(englishWord).append("  -  ").append(russianWord).append("\n");
             }
         } catch (SQLException e) {
+            logger.error("Получение листа из БД" + e);
             throw new RuntimeException(e);
         }
 
@@ -47,56 +52,66 @@ public class BotsUser implements Serializable {
 
 
     public static void removeWord(Long userId, @NotNull String text) {
+        NullCheck nullCheck = () -> logger;
+        nullCheck.checkForNull("removeWord", userId, text);
+
         String[] word = text.split(" - ");
+        nullCheck.checkForNull("removeWord word ", word[0], word[1]);
         word[0] = word[0].trim();
         word[1] = word[1].trim();
 
         Connection connection = DatabaseConnection.getConnection();
+        nullCheck.checkForNull("removeWord Connection", connection);
         try (PreparedStatement preparedStatement = connection.prepareStatement(
-                "DELETE FROM user_word_list where user_id = ? AND word_id = (" +
+                "DELETE FROM user_word_lists where user_id = ? AND word_id = (" +
                         "SELECT word_id FROM words WHERE" +
                         "(russian_word = ? AND english_word = ?) OR " +
-                        "(english_word = ? AND russian word = ?))")) {
+                        "(english_word = ? AND russian_word = ?))")) {
             preparedStatement.setLong(1, userId);
             preparedStatement.setString(2, word[0]);
             preparedStatement.setString(3, word[1]);
             preparedStatement.setString(4, word[0]);
             preparedStatement.setString(5, word[1]);
             preparedStatement.execute();
-            System.out.println("Слово успешно удалено из словаря");
+            logger.info("Слово успешно удалено из словаря");
         } catch (SQLException e) {
-            System.out.println("Не удалось удалить слово из словаря");
+            logger.error("Не удалось удалить слово из словаря" + e);
             throw new RuntimeException(e);
         }
     }
 
     public static void changeWordListType(Long userId, String listType, @NotNull String textFromMessage) {
-        Connection connection = DatabaseConnection.getConnection();
+        try {
+            Connection connection = DatabaseConnection.getConnection();
 
-        if (connection == null) logger.error("changeWordListType Ошибка подключения к БД. connection вернулся null");
+            if (connection == null) logger.error("changeWordListType Ошибка подключения к БД. connection вернулся null");
 
 
-        String[] word = textFromMessage.split("  -  ");
-        word[0] = word[0].trim();
-        word[1] = word[1].trim();
+            String[] word = textFromMessage.split("  -  ");
+            word[0] = word[0].trim();
+            word[1] = word[1].trim();
 
-        try (PreparedStatement preparedStatement = connection.prepareStatement(
-                "UPDATE user_word_lists " +
-                        "SET list_type = ? " +
-                        "WHERE user_id = ? AND word_id = " +
-                        "(SELECT word_id FROM words " +
-                        "WHERE (russian_word = ? AND english_word = ?) " +
-                        "OR (english_word = ? AND russian_word = ?))")) {
-            preparedStatement.setString(1, listType);
-            preparedStatement.setLong(2, userId);
-            preparedStatement.setString(3, word[0]);
-            preparedStatement.setString(4, word[1]);
-            preparedStatement.setString(5, word[0]);
-            preparedStatement.setString(6, word[1]);
-            preparedStatement.execute();
-            logger.info("Слово успешно переведено в другой словарь пользователя");
-        } catch (SQLException e) {
-            logger.error("Ошибка смены словаря в БД для пользователя" + e);
+            try (PreparedStatement preparedStatement = connection.prepareStatement(
+                    "UPDATE user_word_lists " +
+                            "SET list_type = ? " +
+                            "WHERE user_id = ? AND word_id = " +
+                            "(SELECT word_id FROM words " +
+                            "WHERE (russian_word = ? AND english_word = ?) " +
+                            "OR (english_word = ? AND russian_word = ?))")) {
+                preparedStatement.setString(1, listType);
+                preparedStatement.setLong(2, userId);
+                preparedStatement.setString(3, word[0]);
+                preparedStatement.setString(4, word[1]);
+                preparedStatement.setString(5, word[0]);
+                preparedStatement.setString(6, word[1]);
+                preparedStatement.execute();
+                logger.info("Слово успешно переведено в другой словарь пользователя");
+            } catch (SQLException e) {
+                logger.error("Ошибка смены словаря в БД для пользователя" + e);
+                throw new RuntimeException(e);
+            }
+        } catch (Exception e){
+            logger.error("changeWordListType Неизвестная ошибка " + e);
             throw new RuntimeException(e);
         }
     }
@@ -143,30 +158,36 @@ public class BotsUser implements Serializable {
     }
 
     public static void setMenu(Long userId, String menuName) {
+        NullCheck nullCheck = () -> logger;
+        nullCheck.checkForNull("setMenu", userId, menuName);
         Connection connection = DatabaseConnection.getConnection();
+        nullCheck.checkForNull("setMenu connection ", connection);
 
         try (PreparedStatement ps = connection.prepareStatement(
                 "UPDATE  user_menu SET menu_name = ? WHERE user_id = ?")) {
             ps.setString(1, menuName);
             ps.setLong(2, userId);
             ps.executeUpdate();
-            System.out.println("User " + userId + " menu selected");
+            logger.info("Меню для пользователя изменено");
         } catch (SQLException e) {
-            System.err.println("Error inserting user menu: " + e.getMessage());
+            logger.error("setMenu ОШИБКА смены меню в БД " + e);
         }
     }
 
     public static @NotNull String getStatistic(Long userId) {
+        NullCheck nullCheck = () -> logger;
+        nullCheck.checkForNull("getStatistic", userId);
         Connection connection = DatabaseConnection.getConnection();
+        nullCheck.checkForNull("getStatistic Connection", connection);
         Integer learningCount = null;
         Integer repetitionCount = null;
         Integer learnedCount = null;
 
         try (PreparedStatement preparedStatement = connection.prepareStatement("" +
                 "SELECT " +
-                "(SELECT COUNT(word_id) FROM user_word_list WHERE user_id = ? AND list_type = 'learning') AS learning_count," +
-                "(SELECT COUNT(word_id) FROM user_word_list WHERE user_id = ? AND list_type = 'repetition') AS repetition_count," +
-                "(SELECT COUNT(word_id) FROM user_word_list WHERE user_id = ? AND list_type = 'learned') AS learned_count;")) {
+                "(SELECT COUNT(word_id) FROM user_word_lists WHERE user_id = ? AND list_type = 'learning') AS learning_count," +
+                "(SELECT COUNT(word_id) FROM user_word_lists WHERE user_id = ? AND list_type = 'repetition') AS repetition_count," +
+                "(SELECT COUNT(word_id) FROM user_word_lists WHERE user_id = ? AND list_type = 'learned') AS learned_count;")) {
             preparedStatement.setLong(1, userId);
             preparedStatement.setLong(2, userId);
             preparedStatement.setLong(3, userId);
@@ -177,8 +198,10 @@ public class BotsUser implements Serializable {
                 repetitionCount = resultSet.getInt("repetition_count");
                 learnedCount = resultSet.getInt("learned_count");
             }
+            logger.info("Данные статистики из БД получены");
 
         } catch (SQLException e) {
+            logger. error("ОШИБКА получении данных статистики из БД " + e);
             throw new RuntimeException(e);
         }
 
