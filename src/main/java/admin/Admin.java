@@ -58,21 +58,22 @@ public class Admin  implements Serializable {
 
     private void handleAdminCallback(CallbackQuery callbackQuery) {
         String command = callbackQuery.getData();
-        if (command.equals("delete")) {
-            editKeyboardAfterDecided(callbackQuery);
-            AdminsData.removeWord();
-            return;
-        } else if (command.equals("ok")){
-            String[] textInMessage = callbackQuery.getMessage().getText().trim().replaceAll("Eng: ", "")
-                    .replaceAll("Ru: ", "").split("\n");
+        switch (command) {
+            case "delete" -> {
+                editKeyboardAfterDecided(callbackQuery);
+                AdminsData.removeWord();
+                return;
+            }
+            case "ok" -> {
+                String[] textInMessage = callbackQuery.getMessage().getText().trim().replaceAll("Eng: ", "")
+                        .replaceAll("Ru: ", "").split("\n");
+                //Word word = Word.getRandomWord();
+                //AllWordBase.add(word);
 
-            Word word = new Word(textInMessage[0], textInMessage[1]);
-            //AllWordBase.add(word);
-
-            editKeyboardAfterDecided(callbackQuery);
-            AdminsData.removeWord();
-        } else if (command.equals("next")) {
-            wordsChecking();
+                editKeyboardAfterDecided(callbackQuery);
+                AdminsData.removeWord();
+            }
+            case "next" -> wordsChecking();
         }
     }
 
@@ -106,7 +107,7 @@ public class Admin  implements Serializable {
         } else {
             TelegramApiConnect telegramApiConnect = new TelegramApiConnect();
             SendMessage sendMessage = new SendMessage();
-            sendMessage.setText("Eng: " + word.enWord() + "\nRu: " + word.ruWord());
+            sendMessage.setText("Eng: " + word.getEnWord() + "\nRu: " + word.getRuWord());
             sendMessage.setChatId(getChatID());
             sendMessage.setReplyMarkup(getWordCheckKeyboard(false));
             telegramApiConnect.sendMsg(sendMessage);
