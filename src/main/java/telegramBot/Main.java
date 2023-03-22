@@ -16,6 +16,7 @@ public class Main {
     public static void main(String[] args) {
         logger.info("Запуск программы");
 
+        logger.error("Test error");
         TelegramBotsApi telegramBotsApi;
         try {
             telegramBotsApi = new TelegramBotsApi(DefaultBotSession.class);

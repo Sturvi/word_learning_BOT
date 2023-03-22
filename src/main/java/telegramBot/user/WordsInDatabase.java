@@ -17,10 +17,13 @@ import java.util.*;
 public class WordsInDatabase extends DatabaseConnection {
 
     private static final Logger logger = Logger.getLogger(WordsInDatabase.class);
+    private static final NullCheck nullCheck = () -> logger;
 
 
     static void checkNewWordInDB(String word, Set<Integer> wordId) {
+        nullCheck.checkForNull("checkNewWordInDB", word, wordId);
         Connection connection = getConnection();
+        nullCheck.checkForNull("checkNewWordInDB connection ", connection);
 
         try {
             PreparedStatement ps = connection.prepareStatement("SELECT word_id FROM words WHERE LOWER(english_word) = LOWER(?) OR LOWER(russian_word) = LOWER(?)");
@@ -30,34 +33,39 @@ public class WordsInDatabase extends DatabaseConnection {
             while (rs.next()) {
                 wordId.add(rs.getInt("word_id"));
             }
+            logger.info("Проверка нового слова в БД прошла успешно");
         } catch (SQLException e) {
-            System.out.println("Ошибка проверки нового слова в Базе данных");
+            logger.error("Ошибка проверки нового слова в Базе данных " + e);
             throw new RuntimeException(e);
         }
     }
 
-    static void addNewWordToDBFromTranslator (String word, Set<Integer> wordId) throws TranslationException {
+    static void addNewWordToDBFromTranslator(String word, Set<Integer> wordId) throws TranslationException {
+        nullCheck.checkForNull("addNewWordToDBFromTranslator ", word, wordId);
         Connection connection = getConnection();
+        nullCheck.checkForNull("addNewWordToDBFromTranslator connection ", connection);
         List<String> translatorResult = Word.translate(word);
         try {
             PreparedStatement ps = connection.prepareStatement("INSERT INTO words (english_word, russian_word) VALUES (?, ?)");
             ps.setString(1, translatorResult.get(0));
             ps.setString(2, translatorResult.get(1));
             ps.executeUpdate();
-            System.out.println("Слово успешно добавлено в общий словарь");
+            logger.info("Слово успешно добавлено в общий словарь");
             ps = connection.prepareStatement("SELECT lastval()");
             ResultSet rs = ps.executeQuery();
             if (rs.next()) {
                 wordId.add(rs.getInt(1));
             }
         } catch (SQLException e) {
-            System.out.println("Не удалось добавить слово");
+            logger.error("Слово успешно добавлено в общий словарь " + e);
             e.printStackTrace();
         }
     }
 
-    static void checkWordInUserDictionary (Set<Integer> wordId, Long userId){
+    static void checkWordInUserDictionary(Set<Integer> wordId, Long userId) {
+        nullCheck.checkForNull("checkWordInUserDictionary", wordId, userId);
         Connection connection = getConnection();
+        nullCheck.checkForNull("checkWordInUserDictionary connection ", connection);
         try {
             String commaSeparatedPlaceholders = String.join(",", Collections.nCopies(wordId.size(), "?"));
             PreparedStatement ps = connection.prepareStatement("SELECT word_id FROM user_word_lists WHERE user_id = ? AND word_id IN (" + commaSeparatedPlaceholders + ")");
@@ -71,28 +79,32 @@ public class WordsInDatabase extends DatabaseConnection {
             while (rs.next()) {
                 wordId.remove(rs.getInt("word_id"));
             }
+            logger.info("Поиск слова в словаре пользователя прошла успешно.");
         } catch (SQLException e) {
+            logger.error("Ошибка поиска слова в словаре пользователя  " + e);
             throw new RuntimeException(e);
         }
     }
 
-    static void addNewWordsToUserDictionary (Set<Integer> wordId, Long userId){
+    static void addNewWordsToUserDictionary(@NotNull Set<Integer> wordId, Long userId) {
+        nullCheck.checkForNull("addNewWordsToUserDictionary ", wordId, userId);
         Connection connection = DatabaseConnection.getConnection();
-        try{
+        nullCheck.checkForNull("addNewWordsToUserDictionary connection ", connection);
+        try {
             for (int id : wordId) {
                 PreparedStatement ps = connection.prepareCall("insert into user_word_lists (user_id, word_id) VALUES (?, ?)");
                 ps.setLong(1, userId);
                 ps.setInt(2, id);
                 ps.executeUpdate();
-                System.out.println("Слово успешно добавлено в словарь пользователя.");
+                logger.info("Слово успешно добавлено в словарь пользователя.");
             }
         } catch (SQLException e) {
+            logger.error("Не удалось добавить слово в словарь пользователя " + e);
             throw new RuntimeException(e);
         }
     }
 
     public static @Nullable String getWordList(Long userId, String list_type) {
-        NullCheck nullCheck = () -> logger;
         nullCheck.checkForNull("getWordList ", userId, list_type);
         Connection connection = getConnection();
         nullCheck.checkForNull("getWordList Connection ", connection);
@@ -120,7 +132,6 @@ public class WordsInDatabase extends DatabaseConnection {
     }
 
     public static void removeWord(Long userId, @NotNull String text) {
-        NullCheck nullCheck = () -> logger;
         nullCheck.checkForNull("removeWord", userId, text);
 
         String[] word = text.split(" - ");
@@ -149,13 +160,16 @@ public class WordsInDatabase extends DatabaseConnection {
     }
 
     public static void changeWordListType(Long userId, String listType, @NotNull String textFromMessage) {
+        nullCheck.checkForNull("changeWordListType ", userId, listType, textFromMessage);
         try {
             Connection connection = getConnection();
 
-            if (connection == null) logger.error("changeWordListType Ошибка подключения к БД. connection вернулся null");
+            if (connection == null)
+                logger.error("changeWordListType Ошибка подключения к БД. connection вернулся null");
 
 
             String[] word = textFromMessage.split(" {2}- {2}");
+            nullCheck.checkForNull("changeWordListType words ", word[0], word[1]);
             word[0] = word[0].trim();
             word[1] = word[1].trim();
 
@@ -181,13 +195,14 @@ public class WordsInDatabase extends DatabaseConnection {
                 logger.error("Ошибка смены словаря в БД для пользователя" + e);
                 throw new RuntimeException(e);
             }
-        } catch (Exception e){
+        } catch (Exception e) {
             logger.error("changeWordListType Неизвестная ошибка " + e);
             throw new RuntimeException(e);
         }
     }
 
     public static String add(@NotNull String word, Long userId) throws TranslationException {
+        nullCheck.checkForNull("add ", word, userId);
         if (word.length() > 1 || word.equalsIgnoreCase("i")) {
             Set<Integer> wordId = new HashSet<>();
             checkNewWordInDB(word, wordId);
