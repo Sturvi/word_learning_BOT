@@ -1,34 +1,23 @@
 package telegramBot;
 
 import admin.Admin;
-import admin.AdminsData;
+
+import org.apache.log4j.Logger;
 import org.telegram.telegrambots.meta.TelegramBotsApi;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import org.telegram.telegrambots.updatesreceivers.DefaultBotSession;
 
-import java.io.*;
-import java.util.HashMap;
-import java.util.Map;
 
 public class Main {
-    public static Map<Long, User> userMap = new HashMap<>();
+
     public static Admin admin = new Admin();
+    private static final Logger logger = Logger.getLogger(Main.class);
 
     public static void main(String[] args) {
-        File backupDir = new File("backupDir");
+        logger.info("Запуск программы");
 
-        if (!backupDir.exists()) {
-            backupDir.mkdirs();
-        }
-
-       restoreUserMapAndAdmin();
-        AllWordBase.restoreAllWord();
-        AdminsData.restoreWordsQueueForAddingToBase();
-
-        Backup backup = new Backup();
-        backup.start();
-
-        TelegramBotsApi telegramBotsApi = null;
+        logger.error("Test error");
+        TelegramBotsApi telegramBotsApi;
         try {
             telegramBotsApi = new TelegramBotsApi(DefaultBotSession.class);
             telegramBotsApi.registerBot(new TelegramApiConnect());
@@ -36,25 +25,4 @@ public class Main {
             throw new RuntimeException(e);
         }
     }
-
-    public static void backupUserMapAndAdmin() {
-        try (FileOutputStream fos = new FileOutputStream("backupDir/userMap.txt");
-             ObjectOutputStream oos = new ObjectOutputStream(fos)) {
-            oos.writeObject(userMap);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
-    public static void restoreUserMapAndAdmin() {
-        try (FileInputStream fis = new FileInputStream("backupDir/userMap.txt");
-             ObjectInputStream ois = new ObjectInputStream(fis)) {
-            userMap = (Map<Long, User>) ois.readObject();
-            System.out.println("Map containing User objects read from userMap.txt: " + userMap);
-        } catch (IOException | ClassNotFoundException e) {
-            e.printStackTrace();
-        }
-    }
-
-
 }
