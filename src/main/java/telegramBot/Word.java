@@ -164,8 +164,8 @@ public record Word(String enWord, String ruWord) implements Serializable {
             result.add(translationObject.get("text").getAsString());
         }
 
-        if (!(word.equals(result.get(0)) || word.equals(result.get(1)))) {
-            logger.error("ПРИШЕЛ НЕКОРЕКТНЫЙ ПЕРЕВОД НА СЛОВО '" + word + "'");
+        if (!(word.equalsIgnoreCase(result.get(0)) || word.equalsIgnoreCase(result.get(1)))) {
+            logger.error("ПРИШЕЛ НЕКОРЕКТНЫЙ ПЕРЕВОД НА СЛОВО `" + word + "`");
             throw new TranslationException();
         }
 
