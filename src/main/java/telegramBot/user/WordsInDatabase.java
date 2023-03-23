@@ -159,44 +159,47 @@ public class WordsInDatabase extends DatabaseConnection {
         }
     }
 
-    public static void changeWordListType(Long userId, String listType, @NotNull String textFromMessage) {
-        nullCheck.checkForNull("changeWordListType ", userId, listType, textFromMessage);
-        try {
-            Connection connection = getConnection();
+    public static void updateWordProgress(Long userId, Word word) {
+        nullCheck.checkForNull("changeWordListType ", userId, word);
 
-            if (connection == null)
-                logger.error("changeWordListType Ошибка подключения к БД. connection вернулся null");
+        Connection connection = getConnection();
+        nullCheck.checkForNull("changeWordListType connection ", connection);
 
+        String listType = getListTypeFromDB(userId, word);
 
-            String[] word = textFromMessage.split(" {2}- {2}");
-            nullCheck.checkForNull("changeWordListType words ", word[0], word[1]);
-            word[0] = word[0].trim();
-            word[1] = word[1].trim();
-
-            try {
-                assert connection != null;
-                try (PreparedStatement preparedStatement = connection.prepareStatement(
-                        "UPDATE user_word_lists " +
-                                "SET list_type = ? " +
-                                "WHERE user_id = ? AND word_id = " +
-                                "(SELECT word_id FROM words " +
-                                "WHERE (russian_word = ? AND english_word = ?) " +
-                                "OR (english_word = ? AND russian_word = ?))")) {
-                    preparedStatement.setString(1, listType);
-                    preparedStatement.setLong(2, userId);
-                    preparedStatement.setString(3, word[0]);
-                    preparedStatement.setString(4, word[1]);
-                    preparedStatement.setString(5, word[0]);
-                    preparedStatement.setString(6, word[1]);
-                    preparedStatement.execute();
-                    logger.info("Слово успешно переведено в другой словарь пользователя");
-                }
-            } catch (SQLException e) {
-                logger.error("Ошибка смены словаря в БД для пользователя" + e);
-                throw new RuntimeException(e);
+        if (listType.equalsIgnoreCase("learning")) {
+            updateWordProgressInDB("repetition", 1, userId, word);
+            logger.info("Слово переведено в словарь повторения");
+        } else {
+            Integer timerValue = getTimerValueFromDB(userId, word);
+            if (timerValue < 7) {
+                updateWordProgressInDB(listType, 1, userId, word);
+                logger.info("Слово обновлено в словаре повторения");
+            } else {
+                updateWordProgressInDB("learned", 1, userId, word);
+                logger.info("Слово переведено в словарь выученных");
             }
-        } catch (Exception e) {
-            logger.error("changeWordListType Неизвестная ошибка " + e);
+        }
+    }
+
+    private static void updateWordProgressInDB(String listType, Integer timesValue, Long userId, Word word) {
+        nullCheck.checkForNull("updateWordProgressInDB ", listType, timesValue, userId, word);
+
+        Connection connection = DatabaseConnection.getConnection();
+        nullCheck.checkForNull("updateWordProgressInDB Connection ", connection);
+
+        try (PreparedStatement preparedStatement = connection.prepareStatement(
+                "UPDATE user_word_lists " +
+                        "SET list_type = ?, timer_value = timer_value + ?, last_repetition_time = now() " +
+                        "WHERE user_id = ? AND word_id = ?")) {
+            preparedStatement.setString(1, listType);
+            preparedStatement.setInt(2, timesValue);
+            preparedStatement.setLong(3, userId);
+            preparedStatement.setInt(4, word.getWordId());
+            preparedStatement.execute();
+            logger.info("Слово успешно переведено в другой словарь пользователя");
+        } catch (SQLException e) {
+            logger.error("Ошибка смены словаря в БД для пользователя" + e);
             throw new RuntimeException(e);
         }
     }
@@ -222,5 +225,61 @@ public class WordsInDatabase extends DatabaseConnection {
         } else {
             return "Слово должно состоять из 2 и более букв";
         }
+    }
+
+    private static String getListTypeFromDB(Long userId, Word word) {
+        Connection connection = DatabaseConnection.getConnection();
+        String list_type = null;
+
+        try (PreparedStatement preparedStatement = connection.prepareStatement(
+                "SELECT list_type FROM user_word_lists WHERE user_id = ? AND word_id = ?")) {
+            preparedStatement.setLong(1, userId);
+            preparedStatement.setInt(2, word.getWordId());
+            ResultSet resultSet = preparedStatement.executeQuery();
+            nullCheck.checkForNull("editKeyboardAfterLeanedOrForgot resultSet ", resultSet);
+
+            while (resultSet.next()) {
+                list_type = resultSet.getString("list_type");
+                logger.info("list_type Получен из БД");
+            }
+        } catch (SQLException e) {
+            logger.error("editKeyboardAfterLeanedOrForgot Ошибка получения list_type из БД");
+            throw new RuntimeException(e);
+        }
+
+        return list_type;
+    }
+
+    private static Integer getTimerValueFromDB(Long userId, Word word) {
+        nullCheck.checkForNull("getTimesValue ", userId, word);
+
+        Connection connection = DatabaseConnection.getConnection();
+
+        try (PreparedStatement preparedStatement = connection.prepareStatement(
+                "SELECT timer_value FROM user_word_lists WHERE user_id = ? AND word_id = ?")) {
+            preparedStatement.setLong(1, userId);
+            preparedStatement.setInt(2, word.getWordId());
+
+            ResultSet resultSet = preparedStatement.executeQuery();
+
+            if (resultSet.next()) {
+                logger.info("Timer Value успешно получен");
+                return resultSet.getInt("timer_value");
+            } else
+                throw new SQLException();
+        } catch (SQLException e) {
+            logger.error("ОШИБКА получения timer_value из БД");
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static String[] splitMessageText(String text) {
+        nullCheck.checkForNull("splitMessageText ", text);
+        String[] texts = text.split(" {2}- {2}");
+        nullCheck.checkForNull("splitMessageText ", texts[0], texts[1]);
+        texts[0] = texts[0].trim();
+        texts[1] = texts[1].trim();
+
+        return texts;
     }
 }

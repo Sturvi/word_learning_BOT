@@ -20,10 +20,6 @@ import telegramBot.user.BotsUser;
 import telegramBot.user.WordsInDatabase;
 
 import java.io.File;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
@@ -79,24 +75,18 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
 
 
         switch (data) {
-            case ("delete") -> {
-                logger.info("Запрос на удаления слова");
-                WordsInDatabase.removeWord(userId, text);
-                editKeyboardAfterDeleteMessage(callbackQuery);
-            }
-            case ("next") -> {
-                logger.info("Запрос на следующее слово");
-                getRandomWordAndSendToUser(message);
-            }
-            case ("learned") -> {
-                logger.info("Запрос на перевод слова на выученное");
-                WordsInDatabase.changeWordListType(userId, "repetition", text);
+            case ("remembered") -> {
+                logger.info("Принят запрос \"Я Вспомнил это слово\"");
+                WordsInDatabase.updateWordProgress(userId, Word.getWord(text));
                 editKeyboardAfterLeanedOrForgot(callbackQuery);
             }
             case ("forgot") -> {
-                logger.info("Запрос на перевод слова на снова изучаемое");
-                WordsInDatabase.changeWordListType(userId, "learning", text);
+                logger.info("Принят запрос \"Я Вспомнил это слово\"");
                 editKeyboardAfterLeanedOrForgot(callbackQuery);
+            }
+            case ("next") -> {
+                logger.info("Принят запрос на следующее слово");
+                getRandomWordAndSendToUser(message);
             }
         }
     }
@@ -128,6 +118,10 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
             }
             case ("\uD83D\uDD01 Повторять слова") -> {
                 BotsUser.setMenu(userId, "repetition");
+                getRandomWordAndSendToUser(message);
+            }
+            case ("\uD83D\uDD00 Смешанный режим") -> {
+                BotsUser.setMenu(userId, "mixed");
                 getRandomWordAndSendToUser(message);
             }
             case ("\uD83D\uDCD3 Список изучаемых слов") -> {
@@ -174,51 +168,7 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
         editMessageReplyMarkup.setChatId(message.getChatId());
         editMessageReplyMarkup.setMessageId(message.getMessageId());
 
-        InlineKeyboardMarkup keyboard = getKeyboard(message.getChatId());
-
-        String[] texts = message.getText().split(" {2}- {2}");
-        nullCheck.checkForNull("editKeyboardAfterLeanedOrForgot", texts[0], texts[1]);
-        texts[0] = texts[0].trim();
-        texts[1] = texts[1].trim();
-
-
-        Long userId = message.getChatId();
-        Connection connection = DatabaseConnection.getConnection();
-        String list_type = null;
-        try (PreparedStatement preparedStatement = connection.prepareStatement(
-                "SELECT list_type FROM user_word_lists WHERE user_id = ? AND word_id = " +
-                        "(SELECT word_id FROM words " +
-                        " WHERE (russian_word = ? AND english_word = ?) " +
-                        " OR (russian_word = ? AND english_word = ?))")) {
-            preparedStatement.setLong(1, userId);
-            preparedStatement.setString(2, texts[0]);
-            preparedStatement.setString(3, texts[1]);
-            preparedStatement.setString(4, texts[1]);
-            preparedStatement.setString(5, texts[0]);
-            ResultSet resultSet = preparedStatement.executeQuery();
-            nullCheck.checkForNull("editKeyboardAfterLeanedOrForgot", resultSet);
-
-            while (resultSet.next()) {
-                list_type = resultSet.getString("list_type");
-                logger.info("list_type Получен из БД");
-            }
-        } catch (SQLException e) {
-            logger.error("editKeyboardAfterLeanedOrForgot Ошибка получения list_type из БД");
-            throw new RuntimeException(e);
-        }
-
-        assert list_type != null;
-        if (list_type.equalsIgnoreCase("repetition")) {
-            InlineKeyboardButton forgot = new InlineKeyboardButton("\uD83D\uDC68\uD83C\uDFFB\u200D\uD83C\uDF93 Снова изучать это слово");
-            forgot.setCallbackData("forgot");
-            keyboard.getKeyboard().get(0).set(1, forgot);
-            logger.info("Изменения в клавиатуре произведены");
-        } else if (list_type.equalsIgnoreCase("learning")) {
-            InlineKeyboardButton learned = new InlineKeyboardButton("\uD83E\uDDE0 Уже знаю это слово");
-            learned.setCallbackData("learned");
-            keyboard.getKeyboard().get(0).set(1, learned);
-            logger.info("Изменения в клавиатуре произведены");
-        }
+        InlineKeyboardMarkup keyboard = getKeyboardOnlyWishNext(message.getChatId());
 
         editMessageReplyMarkup.setReplyMarkup(keyboard);
 
@@ -227,30 +177,6 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
             logger.info("Изменения клавиатуры отправлены");
         } catch (TelegramApiException e) {
             logger.error("editKeyboardAfterLeanedOrForgot Ошибка отправки изменений клавиатуры");
-            throw new RuntimeException(e);
-        }
-    }
-
-    /*Изменение клавиатуры после удаления слова из словаря*/
-    private void editKeyboardAfterDeleteMessage(CallbackQuery callbackQuery) {
-        NullCheck nullCheck = () -> logger;
-        nullCheck.checkForNull("editKeyboardAfterDeleteMessage", callbackQuery);
-        Message message = callbackQuery.getMessage();
-        String[] text = message.getText().split(" - ");
-        nullCheck.checkForNull("editKeyboardAfterDeleteMessage word ", text[0]);
-
-        EditMessageText editMessageText = new EditMessageText();
-        editMessageText.setMessageId(message.getMessageId());
-        editMessageText.setChatId(message.getChatId());
-        editMessageText.setText("Слово " + text[0] + " удалено из вашего словаря");
-        editMessageText.setReplyMarkup(getKeyboard(message.getChatId(), false));
-
-        logger.info("Изменения клавиатуры после удаления слова готовы.");
-        try {
-            execute(editMessageText);
-            logger.info("Изменения клавиатуры после удаления слова отправлены успешно");
-        } catch (TelegramApiException e) {
-            logger.error("Ошибка отправки изменений клавиатуры после удаления слова " + e);
             throw new RuntimeException(e);
         }
     }
@@ -266,23 +192,31 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
             logger.error("getRandomWordAndSendToUser Меню из БД вернулось null");
             sendMessage(message, "Что-то пошло не так. Мы сообщили об этом Администратору. Скоро все исправим!");
             return;
-        } else if (!(menu.equals("learning") || menu.equals("repetition"))) {
+        } else if (!(menu.equals("learning") || menu.equals("repetition") || menu.equals("mixed"))) {
             sendMessage(message, "Вы не выбрали меню. Пожалуйста выбери меню изучения или повторения слов");
             return;
         }
 
-        Word word = Word.getWord(userId);
+        Word word = Word.getRandomWord(userId);
 
-        if (menu.equals("learning") && word == null) {
-            sendMessage(message, "У вас нет слов для изучения в данный момент. Пожалуйста, " +
-                    "добавьте новые слова, или воспользуйтесь нашим банком слов.");
-            return;
-        }
-
-        if (menu.equals("repetition") && word == null) {
-            sendMessage(message, "У вас нет слов на повторении в данный момент. Пожалуйста, " +
-                    "воспользуйтесь меню \"\uD83D\uDC68\uD83C\uDFFB\u200D\uD83C\uDF93 Учить слова\"");
-            return;
+        if (word == null){
+            switch (menu) {
+                case ("learning") -> {
+                    sendMessage(message, "У вас нет слов для изучения в данный момент. Пожалуйста, " +
+                            "добавьте новые слова, или воспользуйтесь нашим банком слов.");
+                    return;
+                }
+                case ("repetition") -> {
+                    sendMessage(message, "У вас нет слов на повторении в данный момент. Пожалуйста, " +
+                            "воспользуйтесь меню \"\uD83D\uDC68\uD83C\uDFFB\u200D\uD83C\uDF93 Учить слова\"");
+                    return;
+                }
+                case ("mixed") -> {
+                    sendMessage(message, "У вас нет слов для изучения или повторения в данный момент. Пожалуйста, " +
+                            "добавьте новые слова, или воспользуйтесь нашим банком слов.");
+                    return;
+                }
+            }
         }
 
         sendWordWithVoice(word, message);
@@ -298,9 +232,9 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
         int random = new Random().nextInt(2);
 
         if (random == 0) {
-            textForMessage = word.enWord() + "  -  <span class='tg-spoiler'>   " + word.ruWord() + "   </span>";
+            textForMessage = word.getEnWord() + "  -  <span class='tg-spoiler'>   " + word.getRuWord() + "   </span>";
         } else {
-            textForMessage = word.ruWord() + "  -  <span class='tg-spoiler'>   " + word.enWord() + "   </span>";
+            textForMessage = word.getRuWord() + "  -  <span class='tg-spoiler'>   " + word.getEnWord() + "   </span>";
         }
 
         File voice;
@@ -394,6 +328,7 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
         keyboardSecondRow.add(new KeyboardButton("\uD83D\uDCD3 Список слов на повторении"));
         keyboardSecondRow.add(new KeyboardButton("\uD83D\uDCD3 Список изучаемых слов"));
         keyboardThirdRow.add(new KeyboardButton("\uD83D\uDD01 Повторять слова"));
+        keyboardThirdRow.add(new KeyboardButton("\uD83D\uDD00 Смешанный режим"));
         keyboardThirdRow.add(new KeyboardButton("\uD83D\uDC68\uD83C\uDFFB\u200D\uD83C\uDF93 Учить слова"));
 
         keyboardRowList.add(keyboardFirstRow);
@@ -404,51 +339,42 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
         logger.info("Нижние кнопки успешно прикреплены к сообщению");
     }
 
-    /*Прикрепление кнопок под сообщением с первой строчкой по умолчанию*/
-    private @NotNull InlineKeyboardMarkup getKeyboard(Long chatId) {
+    /*    Добавление клавиатуры под сообщение. Параметр boolean определяет, будет ли первая строчка в клавиатуре*/
+    private InlineKeyboardMarkup getKeyboard(Long chatId) {
         NullCheck nullCheck = () -> logger;
         nullCheck.checkForNull("getKeyboard", chatId);
-        return getKeyboard(chatId, true);
-    }
-
-    /*    Добавление клавиатуры под сообщение. Параметр boolean определяет, будет ли первая строчка в клавиатуре*/
-    private InlineKeyboardMarkup getKeyboard(Long chatId, Boolean firstLineInKeyboard) {
-        NullCheck nullCheck = () -> logger;
-        nullCheck.checkForNull("getKeyboard", chatId, firstLineInKeyboard);
         List<List<InlineKeyboardButton>> keyboard = new ArrayList<>();
 
         keyboard.add(new ArrayList<>());
-        keyboard.add(new ArrayList<>());
 
-        if (firstLineInKeyboard) {
-            InlineKeyboardButton delete = new InlineKeyboardButton("❌ Удалить это слово");
-            delete.setCallbackData("delete");
-            keyboard.get(0).add(delete);
+        InlineKeyboardButton remembered = new InlineKeyboardButton("\uD83D\uDE04 Я вспомнил это слово");
+        remembered.setCallbackData("remembered");
+        keyboard.get(0).add(remembered);
 
-            String userMenu = BotsUser.getUserMenu(chatId);
-
-            assert userMenu != null;
-            if (userMenu.equalsIgnoreCase("learning")) {
-                InlineKeyboardButton learned = new InlineKeyboardButton("\uD83E\uDDE0 Уже знаю это слово");
-                learned.setCallbackData("learned");
-                keyboard.get(0).add(learned);
-                logger.info("В клавиатуру добавлена кнопка \uD83E\uDDE0 Уже знаю это слово");
-            } else if (userMenu.equalsIgnoreCase("repetition")) {
-                InlineKeyboardButton forgot = new InlineKeyboardButton("\uD83D\uDC68\uD83C\uDFFB\u200D\uD83C\uDF93 Снова изучать это слово");
-                forgot.setCallbackData("forgot");
-                keyboard.get(0).add(forgot);
-                logger.info("В клавиатуру добавлена кнопка \uD83D\uDC68\uD83C\uDFFB\u200D\uD83C\uDF93 Снова изучать это слово");
-            }
-
-        }
-
-        InlineKeyboardButton next = new InlineKeyboardButton("➡ Следующее слово");
-        next.setCallbackData("next");
-        keyboard.get(1).add(next);
+        InlineKeyboardButton forgot = new InlineKeyboardButton("\uD83D\uDE14 Я не вспомнил это слово");
+        forgot.setCallbackData("forgot");
+        keyboard.get(0).add(forgot);
 
         InlineKeyboardMarkup keyboardMarkup = new InlineKeyboardMarkup();
         keyboardMarkup.setKeyboard(keyboard);
 
+        logger.info("Клавиатура под сообщения готова");
+        return keyboardMarkup;
+    }
+
+    private InlineKeyboardMarkup getKeyboardOnlyWishNext (Long chatId){
+        List<List<InlineKeyboardButton>> keyboard = new ArrayList<>();
+
+        keyboard.add(new ArrayList<>());
+
+        InlineKeyboardButton next = new InlineKeyboardButton("➡️ Следующее слово");
+        next.setCallbackData("next");
+        keyboard.get(0).add(next);
+
+        InlineKeyboardMarkup keyboardMarkup = new InlineKeyboardMarkup();
+        keyboardMarkup.setKeyboard(keyboard);
+
+        logger.info("Клавиатура под сообщения готова c одной клавишей next готова");
         return keyboardMarkup;
     }
 
