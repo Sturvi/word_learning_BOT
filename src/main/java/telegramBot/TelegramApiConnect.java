@@ -380,13 +380,13 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
 
     @Override
     public String getBotUsername() {
-        return "SturviTestBot"; // test bot name
-        //return "@WordLeaningBot";
+        //return "SturviTestBot"; // test bot name
+        return "@WordLeaningBot";
     }
 
     @Override
     public String getBotToken() {
-        return "5857743410:AAHyinYvlTc-grG76012Nqj6Of5SGNgmMvE"; // test token
-        //return "5915434126:AAHto2nUM8S1a9cb2Fgxz8F3P45BV4QGp7U";
+        //return "5857743410:AAHyinYvlTc-grG76012Nqj6Of5SGNgmMvE"; // test token
+        return "5915434126:AAHto2nUM8S1a9cb2Fgxz8F3P45BV4QGp7U";
     }
 }
