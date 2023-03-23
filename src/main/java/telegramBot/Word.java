@@ -116,13 +116,27 @@ public class Word implements Serializable {
         String englishWord = null;
         Integer wordId = null;
         try (PreparedStatement ps = connection.prepareStatement(
-                "SELECT russian_word, english_word, word_id FROM words " +
-                        "WHERE word_id = " +
-                        "(SELECT word_id FROM user_word_lists " +
-                        "WHERE user_id = ? AND list_type = " +
-                        "(SELECT menu_name FROM user_menu " +
-                        "WHERE user_id = ?) " +
-                        "ORDER BY RANDOM() LIMIT 1)")) {
+                "WITH menu AS (" +
+                        "   SELECT menu_name " +
+                        "   FROM user_menu " +
+                        "   WHERE user_id = ? " +
+                        ") " +
+                        "SELECT w.word_id, w.russian_word, w.english_word " +
+                        "FROM words w " +
+                        "JOIN ( " +
+                        "   SELECT word_id " +
+                        "   FROM user_word_lists uwl, menu m " +
+                        "   WHERE uwl.user_id = ? AND ( " +
+                        "       (m.menu_name = 'learning' AND uwl.list_type = 'learning') OR " +
+                        "       (m.menu_name = 'repetition' AND uwl.list_type = 'repetition' AND EXTRACT(day FROM CURRENT_TIMESTAMP - last_repetition_time) >= timer_value) OR " +
+                        "       (m.menu_name = 'mixed' AND ( " +
+                        "           (uwl.list_type = 'learning') OR  " +
+                        "           (uwl.list_type = 'repetition' AND EXTRACT(day FROM CURRENT_TIMESTAMP - last_repetition_time) >= timer_value) " +
+                        "       )) " +
+                        "   ) " +
+                        "   ORDER BY RANDOM() " +
+                        "   LIMIT 1 " +
+                        ") uwl ON w.word_id = uwl.word_id;")) {
             ps.setLong(1, userId);
             ps.setLong(2, userId);
             ResultSet resultSet = ps.executeQuery();

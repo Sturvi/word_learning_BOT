@@ -120,6 +120,10 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
                 BotsUser.setMenu(userId, "repetition");
                 getRandomWordAndSendToUser(message);
             }
+            case ("\uD83D\uDD00 Смешанный режим") -> {
+                BotsUser.setMenu(userId, "mixed");
+                getRandomWordAndSendToUser(message);
+            }
             case ("\uD83D\uDCD3 Список изучаемых слов") -> {
                 BotsUser.setMenu(userId, "AllFalse");
                 String messageText = WordsInDatabase.getWordList(userId, "learning");
@@ -188,23 +192,31 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
             logger.error("getRandomWordAndSendToUser Меню из БД вернулось null");
             sendMessage(message, "Что-то пошло не так. Мы сообщили об этом Администратору. Скоро все исправим!");
             return;
-        } else if (!(menu.equals("learning") || menu.equals("repetition"))) {
+        } else if (!(menu.equals("learning") || menu.equals("repetition") || menu.equals("mixed"))) {
             sendMessage(message, "Вы не выбрали меню. Пожалуйста выбери меню изучения или повторения слов");
             return;
         }
 
         Word word = Word.getRandomWord(userId);
 
-        if (menu.equals("learning") && word == null) {
-            sendMessage(message, "У вас нет слов для изучения в данный момент. Пожалуйста, " +
-                    "добавьте новые слова, или воспользуйтесь нашим банком слов.");
-            return;
-        }
-
-        if (menu.equals("repetition") && word == null) {
-            sendMessage(message, "У вас нет слов на повторении в данный момент. Пожалуйста, " +
-                    "воспользуйтесь меню \"\uD83D\uDC68\uD83C\uDFFB\u200D\uD83C\uDF93 Учить слова\"");
-            return;
+        if (word == null){
+            switch (menu) {
+                case ("learning") -> {
+                    sendMessage(message, "У вас нет слов для изучения в данный момент. Пожалуйста, " +
+                            "добавьте новые слова, или воспользуйтесь нашим банком слов.");
+                    return;
+                }
+                case ("repetition") -> {
+                    sendMessage(message, "У вас нет слов на повторении в данный момент. Пожалуйста, " +
+                            "воспользуйтесь меню \"\uD83D\uDC68\uD83C\uDFFB\u200D\uD83C\uDF93 Учить слова\"");
+                    return;
+                }
+                case ("mixed") -> {
+                    sendMessage(message, "У вас нет слов для изучения или повторения в данный момент. Пожалуйста, " +
+                            "добавьте новые слова, или воспользуйтесь нашим банком слов.");
+                    return;
+                }
+            }
         }
 
         sendWordWithVoice(word, message);
@@ -316,6 +328,7 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
         keyboardSecondRow.add(new KeyboardButton("\uD83D\uDCD3 Список слов на повторении"));
         keyboardSecondRow.add(new KeyboardButton("\uD83D\uDCD3 Список изучаемых слов"));
         keyboardThirdRow.add(new KeyboardButton("\uD83D\uDD01 Повторять слова"));
+        keyboardThirdRow.add(new KeyboardButton("\uD83D\uDD00 Смешанный режим"));
         keyboardThirdRow.add(new KeyboardButton("\uD83D\uDC68\uD83C\uDFFB\u200D\uD83C\uDF93 Учить слова"));
 
         keyboardRowList.add(keyboardFirstRow);
