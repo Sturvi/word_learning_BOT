@@ -264,6 +264,14 @@ public class Word implements Serializable {
         return result;
     }
 
+    public String getContext(){
+        try {
+            return new ChatGptApi().getResponse(enWord);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;

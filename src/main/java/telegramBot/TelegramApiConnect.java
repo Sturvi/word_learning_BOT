@@ -84,6 +84,11 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
                 logger.info("Принят запрос \"Я Вспомнил это слово\"");
                 editKeyboardAfterLeanedOrForgot(callbackQuery);
             }
+            case ("context") -> {
+                logger.info("Принят запрос \"На получение контекста\"");
+                Word word = Word.getWord(message.getText());
+                sendMessage(message, word.getContext());
+            }
             case ("next") -> {
                 logger.info("Принят запрос на следующее слово");
                 getRandomWordAndSendToUser(message);
@@ -351,6 +356,10 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
         remembered.setCallbackData("remembered");
         keyboard.get(0).add(remembered);
 
+        InlineKeyboardButton context = new InlineKeyboardButton("Контекст");
+        context.setCallbackData("context");
+        keyboard.get(0).add(context);
+
         InlineKeyboardButton forgot = new InlineKeyboardButton("\uD83D\uDE14 Я не вспомнил это слово");
         forgot.setCallbackData("forgot");
         keyboard.get(0).add(forgot);
@@ -380,13 +389,13 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
 
     @Override
     public String getBotUsername() {
-        //return "SturviTestBot"; // test bot name
-        return "@WordLeaningBot";
+        return "SturviTestBot"; // test bot name
+        //return "@WordLeaningBot";
     }
 
     @Override
     public String getBotToken() {
-        //return "5857743410:AAHyinYvlTc-grG76012Nqj6Of5SGNgmMvE"; // test token
-        return "5915434126:AAHto2nUM8S1a9cb2Fgxz8F3P45BV4QGp7U";
+        return "5857743410:AAHyinYvlTc-grG76012Nqj6Of5SGNgmMvE"; // test token
+        //return "5915434126:AAHto2nUM8S1a9cb2Fgxz8F3P45BV4QGp7U";
     }
 }
