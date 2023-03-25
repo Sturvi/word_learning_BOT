@@ -79,7 +79,7 @@ public class Word implements Serializable {
         Connection connection = DatabaseConnection.getConnection();
         nullCheck.checkForNull("getWord Connection ", connection);
 
-        String[] words = WordsInDatabase.splitMessageText(messageText);
+        String[] words = splitMessageText(messageText);
 
         try (PreparedStatement preparedStatement = connection.prepareStatement(
                 "SELECT word_id, russian_word, english_word FROM words " +
@@ -455,6 +455,16 @@ public class Word implements Serializable {
             logger.error("Не удалось добавить слово в словарь пользователя " + e);
             throw new RuntimeException(e);
         }
+    }
+
+    private static String[] splitMessageText(String text) {
+        nullCheck.checkForNull("splitMessageText ", text);
+        String[] texts = text.split(" {2}- {2}");
+        nullCheck.checkForNull("splitMessageText ", texts[0], texts[1]);
+        texts[0] = texts[0].trim();
+        texts[1] = texts[1].trim();
+
+        return texts;
     }
 
     @Override

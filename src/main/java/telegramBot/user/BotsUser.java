@@ -59,29 +59,53 @@ public class BotsUser implements Serializable {
         }
     }
 
+    /*Метод getStatistic получает статистику из базы данных о словах, изучаемых пользователем.
+    Использует NullCheck для проверки на null и PreparedStatement для выполнения запроса к БД.
+    Результаты запроса форматируются в строку и возвращаются.*/
     public static @NotNull String getStatistic(Long userId) {
         NullCheck nullCheck = () -> logger;
         nullCheck.checkForNull("getStatistic", userId);
         Connection connection = DatabaseConnection.getConnection();
         nullCheck.checkForNull("getStatistic Connection", connection);
-        Integer learningCount = null;
-        Integer repetitionCount = null;
-        Integer learnedCount = null;
+
+        StringBuilder stringBuilder = new StringBuilder();
 
         try (PreparedStatement preparedStatement = connection.prepareStatement("" +
                 "SELECT " +
-                "(SELECT COUNT(word_id) FROM user_word_lists WHERE user_id = ? AND list_type = 'learning') AS learning_count," +
-                "(SELECT COUNT(word_id) FROM user_word_lists WHERE user_id = ? AND list_type = 'repetition') AS repetition_count," +
-                "(SELECT COUNT(word_id) FROM user_word_lists WHERE user_id = ? AND list_type = 'learned') AS learned_count;")) {
+                "COUNT(CASE WHEN list_type = 'learning' THEN word_id END) AS learning_count, " +
+                "COUNT(CASE WHEN list_type = 'repetition' AND timer_value = 1 THEN word_id END) AS repetition_1count, " +
+                "COUNT(CASE WHEN list_type = 'repetition' AND timer_value = 2 THEN word_id END) AS repetition_2count, " +
+                "COUNT(CASE WHEN list_type = 'repetition' AND timer_value = 3 THEN word_id END) AS repetition_3count, " +
+                "COUNT(CASE WHEN list_type = 'repetition' AND timer_value = 4 THEN word_id END) AS repetition_4count, " +
+                "COUNT(CASE WHEN list_type = 'repetition' AND timer_value = 5 THEN word_id END) AS repetition_5count, " +
+                "COUNT(CASE WHEN list_type = 'repetition' AND timer_value = 6 THEN word_id END) AS repetition_6count, " +
+                "COUNT(CASE WHEN list_type = 'learned' THEN word_id END) AS learned_count " +
+                "FROM user_word_lists WHERE user_id = ?")){
             preparedStatement.setLong(1, userId);
-            preparedStatement.setLong(2, userId);
-            preparedStatement.setLong(3, userId);
+
             ResultSet resultSet = preparedStatement.executeQuery();
 
-            while (resultSet.next()) {
-                learningCount = resultSet.getInt("learning_count");
-                repetitionCount = resultSet.getInt("repetition_count");
-                learnedCount = resultSet.getInt("learned_count");
+            if (resultSet.next()) {
+                stringBuilder.append("Слова на изучении: ").append(resultSet.getInt("learning_count")).append("\n");
+                if (resultSet.getInt("repetition_1count") != 0){
+                    stringBuilder.append("Слова на повторении 1 уровня: ").append(resultSet.getInt("repetition_1count")).append("\n");
+                }
+                if (resultSet.getInt("repetition_2count") != 0){
+                    stringBuilder.append("Слова на повторении 2 уровня: ").append(resultSet.getInt("repetition_2count")).append("\n");
+                }
+                if (resultSet.getInt("repetition_3count") != 0){
+                    stringBuilder.append("Слова на повторении 3 уровня️: ").append(resultSet.getInt("repetition_3count")).append("\n");
+                }
+                if (resultSet.getInt("repetition_4count") != 0){
+                    stringBuilder.append("Слова на повторении 4 уровня️: ").append(resultSet.getInt("repetition_4count")).append("\n");
+                }
+                if (resultSet.getInt("repetition_5count") != 0){
+                    stringBuilder.append("Слова на повторении 5 уровня️: ").append(resultSet.getInt("repetition_5count")).append("\n");
+                }
+                if (resultSet.getInt("repetition_6count") != 0){
+                    stringBuilder.append("Слова на повторении 6 уровня️: ").append(resultSet.getInt("repetition_6count")).append("\n");
+                }
+                stringBuilder.append("Изученные слова: ").append(resultSet.getInt("learned_count")).append("\n");
             }
             logger.info("Данные статистики из БД получены");
 
@@ -90,8 +114,6 @@ public class BotsUser implements Serializable {
             throw new RuntimeException(e);
         }
 
-        return "Изученные слова: " + learnedCount + "\n" +
-                "Слова на повторении: " + repetitionCount + "\n" +
-                "Слова на изучении: " + learningCount;
+        return stringBuilder.toString();
     }
 }

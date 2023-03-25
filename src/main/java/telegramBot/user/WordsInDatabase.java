@@ -122,8 +122,6 @@ public class WordsInDatabase {
         }
     }
 
-
-
     private static String getListTypeFromDB(Long userId, Word word) {
         Connection connection = DatabaseConnection.getConnection();
         String list_type = null;
@@ -168,15 +166,5 @@ public class WordsInDatabase {
             logger.error("ОШИБКА получения timer_value из БД");
             throw new RuntimeException(e);
         }
-    }
-
-    public static String[] splitMessageText(String text) {
-        nullCheck.checkForNull("splitMessageText ", text);
-        String[] texts = text.split(" {2}- {2}");
-        nullCheck.checkForNull("splitMessageText ", texts[0], texts[1]);
-        texts[0] = texts[0].trim();
-        texts[1] = texts[1].trim();
-
-        return texts;
     }
 }
