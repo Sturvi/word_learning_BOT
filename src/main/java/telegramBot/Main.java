@@ -22,6 +22,7 @@ public class Main {
             telegramBotsApi = new TelegramBotsApi(DefaultBotSession.class);
             telegramBotsApi.registerBot(new TelegramApiConnect());
         } catch (TelegramApiException e) {
+            logger.error("КОРОЧЕ ПИСЕЦ БОТУ! :-) " + e);
             throw new RuntimeException(e);
         }
     }

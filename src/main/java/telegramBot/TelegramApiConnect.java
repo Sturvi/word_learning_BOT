@@ -84,9 +84,30 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
                 logger.info("Принят запрос \"Я Вспомнил это слово\"");
                 editKeyboardAfterLeanedOrForgot(callbackQuery);
             }
+            case ("context") -> {
+                logger.info("Принят запрос \"На получение контекста\"");
+                Word word = Word.getWord(message.getText());
+                sendMessage(message, word.getContext());
+            }
             case ("next") -> {
                 logger.info("Принят запрос на следующее слово");
                 getRandomWordAndSendToUser(message);
+            }
+            case ("yes") -> {
+                String userMenu = BotsUser.getUserMenu(message.getChatId());
+                assert userMenu != null;
+                if (userMenu.equalsIgnoreCase("inDeleteMenu")) {
+                    Word word = Word.getWord(message.getText());
+                    word.deleteWordFromUserList(userId);
+                    deleteInlineKeyboard(callbackQuery);
+                    editMessageText(userId, message.getMessageId(), "Слово успешно удалено");
+                } else {
+                    deleteInlineKeyboard(callbackQuery);
+                    editMessageText(userId, message.getMessageId(), "Попробуйте снова");
+                }
+            }
+            case ("no") -> {
+                deleteInlineKeyboard(callbackQuery);
             }
         }
     }
@@ -96,7 +117,7 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
         NullCheck nullCheck = () -> logger;
         nullCheck.checkForNull("handleTextMessage ", message);
 
-        String InputMessageText = message.getText();
+        String InputMessageText = message.getText().trim();
         Long userId = message.getChatId();
 
         switch (InputMessageText) {
@@ -140,20 +161,55 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
                 BotsUser.setMenu(userId, "AllFalse");
                 sendMessage(message, BotsUser.getStatistic(userId));
             }
+            case ("/delete") -> {
+                BotsUser.setMenu(userId, "inDeleteMenu");
+                sendMessage(message, "Отправьте в виде сообщения слово, которое вы хотите удалить из вашего словаря!");
+            }
             default -> {
                 String menu = BotsUser.getUserMenu(userId);
                 assert menu != null;
-                if (menu.equals("inAddMenu")) {
-                    try {
-                        sendMessage(message, WordsInDatabase.add(InputMessageText, userId), true);
-                    } catch (TranslationException e) {
-                        sendMessage(message, "К сожалению нам не удалось корректно перевести данное слово. " +
-                                "Сообщение об ошибке уже отправлено администратору. В скором времени ошибка будет исправлена. " +
-                                "Эта ошибка не помешает вам добавлять и изучать другие слова");
-                        throw new RuntimeException(e);
+                switch (menu) {
+                    case ("inAddMenu") -> {
+                        try {
+                            sendMessage(message, Word.add(InputMessageText, userId), true);
+                        } catch (TranslationException e) {
+                            sendMessage(message, "К сожалению нам не удалось корректно перевести данное слово. " +
+                                    "Сообщение об ошибке уже отправлено администратору. В скором времени ошибка будет исправлена. " +
+                                    "Эта ошибка не помешает вам добавлять и изучать другие слова");
+                            throw new RuntimeException(e);
+                        }
+                    }
+                    case ("inDeleteMenu") -> {
+                        sendMessage(message, "Уверены ли вы, что хотите удалить данное слово?");
+                        for (Word word : Word.getWordList(message.getText())) {
+                            if (word.checkWordInUserList()) {
+                                sendMessage(message, word.getEnWord() + "  -  " + word.getRuWord(), yesOrNoKeyboard());
+                            }
+                        }
                     }
                 }
             }
+        }
+    }
+
+    private void deleteInlineKeyboard(CallbackQuery callbackQuery) {
+        logger.info("Начало удаления клавиатуры");
+
+        EditMessageReplyMarkup editMessageReplyMarkup = new EditMessageReplyMarkup();
+        editMessageReplyMarkup.setChatId(callbackQuery.getMessage().getChatId());
+        editMessageReplyMarkup.setMessageId(callbackQuery.getMessage().getMessageId());
+
+        InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
+        inlineKeyboardMarkup.setKeyboard(new ArrayList<>());
+
+        editMessageReplyMarkup.setReplyMarkup(inlineKeyboardMarkup);
+
+        try {
+            execute(editMessageReplyMarkup);
+            logger.info("Удаление клавиатуры отправлено");
+        } catch (TelegramApiException e) {
+            logger.error("deleteInlineKeyboard Ошибка отправки удаления клавиатуры");
+            throw new RuntimeException(e);
         }
     }
 
@@ -199,7 +255,7 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
 
         Word word = Word.getRandomWord(userId);
 
-        if (word == null){
+        if (word == null) {
             switch (menu) {
                 case ("learning") -> {
                     sendMessage(message, "У вас нет слов для изучения в данный момент. Пожалуйста, " +
@@ -351,6 +407,10 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
         remembered.setCallbackData("remembered");
         keyboard.get(0).add(remembered);
 
+        InlineKeyboardButton context = new InlineKeyboardButton("Контекст");
+        context.setCallbackData("context");
+        keyboard.get(0).add(context);
+
         InlineKeyboardButton forgot = new InlineKeyboardButton("\uD83D\uDE14 Я не вспомнил это слово");
         forgot.setCallbackData("forgot");
         keyboard.get(0).add(forgot);
@@ -362,7 +422,44 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
         return keyboardMarkup;
     }
 
-    private InlineKeyboardMarkup getKeyboardOnlyWishNext (Long chatId){
+    private InlineKeyboardMarkup yesOrNoKeyboard() {
+        List<List<InlineKeyboardButton>> keyboard = new ArrayList<>();
+
+        keyboard.add(new ArrayList<>());
+
+        InlineKeyboardButton yes = new InlineKeyboardButton("✅");
+        yes.setCallbackData("yes");
+        keyboard.get(0).add(yes);
+
+        InlineKeyboardButton no = new InlineKeyboardButton("⛔️");
+        no.setCallbackData("no");
+        keyboard.get(0).add(no);
+
+        InlineKeyboardMarkup keyboardMarkup = new InlineKeyboardMarkup();
+        keyboardMarkup.setKeyboard(keyboard);
+
+        logger.info("Клавиатура под сообщения готова");
+        return keyboardMarkup;
+    }
+
+
+    public void editMessageText(Long chatId, Integer messageId, String newText) {
+        EditMessageText editMessage = new EditMessageText();
+        // задаем параметры изменяемого сообщения
+        editMessage.setChatId(chatId);
+        editMessage.setMessageId(messageId);
+        // задаем новый текст сообщения
+        editMessage.setText(newText);
+
+        try {
+            // отправляем измененное сообщение
+            execute(editMessage);
+        } catch (TelegramApiException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private InlineKeyboardMarkup getKeyboardOnlyWishNext(Long chatId) {
         List<List<InlineKeyboardButton>> keyboard = new ArrayList<>();
 
         keyboard.add(new ArrayList<>());
@@ -386,7 +483,7 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
 
     @Override
     public String getBotToken() {
-        //return "5857743410:AAHyinYvlTc-grG76012Nqj6Of5SGNgmMvE"; // test token
+       // return "5857743410:AAHyinYvlTc-grG76012Nqj6Of5SGNgmMvE"; // test token
         return "5915434126:AAHto2nUM8S1a9cb2Fgxz8F3P45BV4QGp7U";
     }
 }
