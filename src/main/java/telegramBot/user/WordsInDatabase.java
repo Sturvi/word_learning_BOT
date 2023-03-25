@@ -1,6 +1,5 @@
 package telegramBot.user;
 
-import Exceptions.TranslationException;
 import dataBase.DatabaseConnection;
 import org.apache.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
@@ -20,8 +19,8 @@ public class WordsInDatabase {
     private static final NullCheck nullCheck = () -> logger;
 
 
-
-
+    /*Метод получает список слов пользователя, указанного типа. Если тип "learning", список слов на изучении.
+    Если тип "repetition", список слов на повторении (по уровням). Возвращает список в виде строки.*/
     public static @Nullable String getWordList(Long userId, String list_type) {
         nullCheck.checkForNull("getWordList ", userId, list_type);
         Connection connection = DatabaseConnection.getConnection();
@@ -29,16 +28,39 @@ public class WordsInDatabase {
         StringBuilder stringBuilder = new StringBuilder();
 
         try (PreparedStatement preparedStatement = connection.prepareStatement(
-                "SELECT russian_word, english_word FROM words WHERE word_id IN (" +
-                        "SELECT word_id FROM user_word_lists WHERE user_id = ? AND list_type = ?)"
+                "SELECT w.english_word, w.russian_word, uwl.timer_value " +
+                        "FROM words w " +
+                        "JOIN user_word_lists uwl ON w.word_id = uwl.word_id " +
+                        "WHERE uwl.user_id = ? AND uwl.list_type = ?"
         )) {
             preparedStatement.setLong(1, userId);
             preparedStatement.setString(2, list_type);
             ResultSet resultSet = preparedStatement.executeQuery();
-            while (resultSet.next()) {
-                String englishWord = resultSet.getString("english_word");
-                String russianWord = resultSet.getString("russian_word");
-                stringBuilder.append(englishWord).append("  -  ").append(russianWord).append("\n");
+
+            if (list_type.equalsIgnoreCase("learning")) {
+                stringBuilder.append("Список слов на изучении:\n");
+                while (resultSet.next()) {
+                    String englishWord = resultSet.getString("english_word");
+                    String russianWord = resultSet.getString("russian_word");
+                    stringBuilder.append(englishWord).append("  -  ").append(russianWord).append("\n");
+                }
+            } else if (list_type.equalsIgnoreCase("repetition")) {
+                Map<Integer, StringBuilder> repetitionWords = new HashMap<>();
+                while (resultSet.next()) {
+                    int timerValue = resultSet.getInt("timer_value");
+
+                    String englishWord = resultSet.getString("english_word");
+                    String russianWord = resultSet.getString("russian_word");
+
+                    if (!repetitionWords.containsKey(timerValue)) repetitionWords.put(timerValue, new StringBuilder());
+                    repetitionWords.get(timerValue).append(englishWord).append("  -  ").append(russianWord).append("\n");
+                }
+
+                for (int i = 1; i < 7; i++) {
+                    if (repetitionWords.containsKey(i)) {
+                        stringBuilder.append("Слова на повторении ").append(i).append(" уровня \n").append(repetitionWords.get(i)).append("\n");
+                    }
+                }
             }
         } catch (SQLException e) {
             logger.error("Получение листа из БД" + e);
@@ -77,6 +99,8 @@ public class WordsInDatabase {
         }
     }
 
+    /*Метод обновляет прогресс изучения слова в зависимости от его нахождения в списке и количества повторений.
+    Важно передать непустые значения userId и word.*/
     public static void updateWordProgress(Long userId, Word word) {
         nullCheck.checkForNull("changeWordListType ", userId, word);
 
@@ -100,6 +124,9 @@ public class WordsInDatabase {
         }
     }
 
+    /*Метод обновляет прогресс изучения слова в базе данных пользователя.
+    В таблице "user_word_lists" обновляются поля "list_type", "timer_value" и "last_repetition_time".
+    Входные параметры: тип списка, количество повторений, ID пользователя и объект слова.*/
     private static void updateWordProgressInDB(String listType, Integer timesValue, Long userId, Word word) {
         nullCheck.checkForNull("updateWordProgressInDB ", listType, timesValue, userId, word);
 
@@ -122,6 +149,7 @@ public class WordsInDatabase {
         }
     }
 
+    /*Метод получает тип списка слов из базы данных по идентификатору пользователя и объекту слова.*/
     private static String getListTypeFromDB(Long userId, Word word) {
         Connection connection = DatabaseConnection.getConnection();
         String list_type = null;
@@ -145,6 +173,8 @@ public class WordsInDatabase {
         return list_type;
     }
 
+    /*Метод получает из БД значение таймера для определенного пользователя и слова.
+    В случае ошибки выбрасывает исключение.*/
     private static Integer getTimerValueFromDB(Long userId, Word word) {
         nullCheck.checkForNull("getTimesValue ", userId, word);
 

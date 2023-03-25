@@ -2,6 +2,7 @@ package telegramBot;
 
 import Exceptions.ChatGptApiException;
 import com.google.gson.Gson;
+import dataBase.DatabaseConnection;
 import org.apache.log4j.Logger;
 
 import java.net.URI;
@@ -9,6 +10,10 @@ import java.io.IOException;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.List;
 
 public class ChatGptApi {
@@ -34,7 +39,7 @@ public class ChatGptApi {
 
         HttpRequest request = HttpRequest.newBuilder().uri(URI.create("https://api.openai.com/v1/chat/completions"))
                 .header("Content-Type", "application/json")
-                .header("Authorization", "Bearer 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")
+                .header("Authorization", "Bearer " + getApiKey())
                 .POST(HttpRequest.BodyPublishers.ofString(input))
                 .build();
 
@@ -62,6 +67,31 @@ public class ChatGptApi {
 
         // Получаем контекст из объекта ChatCompletion.
         return chatCompletion.getContext();
+    }
+
+    /*Метод getApiKey() используется для получения ключа API из базы данных. Если ключ существует,
+    метод возвращает его значение. В противном случае генерируется исключение RuntimeException.
+    .*/
+    private String getApiKey() {
+        String apiKey;
+
+        try (PreparedStatement preparedStatement = DatabaseConnection.getConnection().prepareStatement(
+                "SELECT api_key From api_keys WHERE name = 'OpenAI';")) {
+            ResultSet resultSet = preparedStatement.executeQuery();
+
+            if (resultSet.next()){
+                logger.info("Ключ API получен");
+                return resultSet.getString("api_key");
+            } else {
+                logger.error("Resul SET вернулся null");
+                throw new RuntimeException();
+            }
+        } catch (SQLException e) {
+            logger.error("Ошибка получения ключа из БД " + e);
+            throw new RuntimeException(e);
+        }
+
+
     }
 }
 
