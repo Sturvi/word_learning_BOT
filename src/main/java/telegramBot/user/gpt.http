@@ -1,13 +1,13 @@
 POST https://api.openai.com/v1/chat/completions
 Content-Type: application/json
-Authorization: Bearer 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
+Authorization: Bearer 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
 
 {
   "model": "gpt-3.5-turbo",
   "messages": [
     {
       "role": "system",
-      "content": "Пришли контекст слова \"Client\" в 150 символов"
+      "content": "Пришли контекст слова \"Client\" на русском максимум в 150 символов"
     }
   ]
 }

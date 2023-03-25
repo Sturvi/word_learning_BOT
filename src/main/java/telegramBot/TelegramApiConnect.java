@@ -150,7 +150,7 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
                 assert menu != null;
                 if (menu.equals("inAddMenu")) {
                     try {
-                        sendMessage(message, WordsInDatabase.add(InputMessageText, userId), true);
+                        sendMessage(message, Word.add(InputMessageText, userId), true);
                     } catch (TranslationException e) {
                         sendMessage(message, "К сожалению нам не удалось корректно перевести данное слово. " +
                                 "Сообщение об ошибке уже отправлено администратору. В скором времени ошибка будет исправлена. " +

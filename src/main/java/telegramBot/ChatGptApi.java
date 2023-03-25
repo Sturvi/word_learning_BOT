@@ -1,6 +1,8 @@
 package telegramBot;
 
+import Exceptions.ChatGptApiException;
 import com.google.gson.Gson;
+import org.apache.log4j.Logger;
 
 import java.net.URI;
 import java.io.IOException;
@@ -11,25 +13,28 @@ import java.util.List;
 
 public class ChatGptApi {
 
-    final String API_KEY = "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";
-    final String ENDPOINT = "https://api.openai.com/v1/engines/davinci/completions";
+    private static final Logger logger = Logger.getLogger(ChatGptApi.class);
+    NullCheck nullCheck = () -> logger;
 
-    public static String getResponse(String text) throws IOException {
-        String prompt = "Пришли контекст слова \"" + text + "\" в 150 символов";
+    public String getResponse(String text) throws IOException {
+        nullCheck.checkForNull("getResponse ", text);
 
-        String input = "{\n"
-                + "  \"model\": \"gpt-3.5-turbo\",\n"
-                + "  \"messages\": [\n"
-                + "    {\n"
-                + "      \"role\": \"system\",\n"
-                + "      \"content\": \"Пришли контекст слова '" + text + "' в 150 символов\"\n"
-                + "    }\n"
-                + "  ]\n"
-                + "}".formatted(prompt);
+        String input = """
+                {
+                  "model": "gpt-3.5-turbo",
+                  "messages": [
+                    {
+                      "role": "system",
+                      "content": "Пришли контекст слова %s на русском максимум в 150 символов"
+                    }
+                  ]
+                }
+                """.formatted(text);
+        logger.info("Пронт на слово " + text + " составлен");
 
         HttpRequest request = HttpRequest.newBuilder().uri(URI.create("https://api.openai.com/v1/chat/completions"))
                 .header("Content-Type", "application/json")
-                .header("Authorization", "Bearer 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")
+                .header("Authorization", "Bearer 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")
                 .POST(HttpRequest.BodyPublishers.ofString(input))
                 .build();
 
@@ -37,7 +42,9 @@ public class ChatGptApi {
         HttpResponse<String> respone = null;
         try {
             respone = client.send(request, HttpResponse.BodyHandlers.ofString());
+            logger.info("Запрос в Chat gpt API отправлен.");
         } catch (InterruptedException e) {
+            logger.error("Ошибка отправки запроса в  Chat gpt API");
             throw new RuntimeException(e);
         }
 
@@ -48,12 +55,15 @@ public class ChatGptApi {
         // Парсим JSON объект в экземпляр класса ChatCompletion.
         ChatCompletion chatCompletion = gson.fromJson(jsonString, ChatCompletion.class);
 
+        if (chatCompletion.getContext() == null) {
+            logger.error("Ошибка получения контента. вернулся null");
+            throw new ChatGptApiException();
+        }
+
         // Получаем контекст из объекта ChatCompletion.
         return chatCompletion.getContext();
     }
-
 }
-
 
 class ChatCompletion {
     private String id;

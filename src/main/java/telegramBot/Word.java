@@ -10,6 +10,7 @@ import com.microsoft.cognitiveservices.speech.*;
 import dataBase.DatabaseConnection;
 import okhttp3.*;
 import org.apache.log4j.Logger;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import telegramBot.user.WordsInDatabase;
 
@@ -18,11 +19,12 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.ArrayList;
+import java.util.*;
 
 public class Word implements Serializable {
 
     private static final Logger logger = Logger.getLogger(Word.class);
+    static NullCheck nullCheck = () -> logger;
     private final String enWord;
     private final String ruWord;
     private final Integer wordId;
@@ -82,7 +84,7 @@ public class Word implements Serializable {
         try (PreparedStatement preparedStatement = connection.prepareStatement(
                 "SELECT word_id, russian_word, english_word FROM words " +
                         "WHERE (english_word = ? AND russian_word = ?)" +
-                        "OR (english_word = ? AND russian_word = ?)")){
+                        "OR (english_word = ? AND russian_word = ?)")) {
             preparedStatement.setString(1, words[0]);
             preparedStatement.setString(2, words[1]);
             preparedStatement.setString(3, words[1]);
@@ -90,7 +92,7 @@ public class Word implements Serializable {
 
             ResultSet resultSet = preparedStatement.executeQuery();
 
-            if (resultSet.next()){
+            if (resultSet.next()) {
                 logger.info("Объект слова успешно создан");
                 return new Word(resultSet.getString("english_word"),
                         resultSet.getString("russian_word"),
@@ -213,7 +215,7 @@ public class Word implements Serializable {
 
     /*Данный метод принимает String и отправляет его в Microsoft TranslatorAPi получает перевод
     и возвращает его в виде ArrayList, где первый элемент это слово на английском, второй элемент на русском*/
-    public static ArrayList<String> translate(String word) throws TranslationException {
+    private static ArrayList<String> translate(String word) throws TranslationException {
         NullCheck nullCheck = () -> logger;
         nullCheck.checkForNull("translate", word);
         String key = "9a7b89f2526247049ab6ec3980ae56a8";
@@ -264,10 +266,193 @@ public class Word implements Serializable {
         return result;
     }
 
-    public String getContext(){
+    /**
+     * Возвращает контекст для заданного английского слова.
+     * Если контекст отсутствует в базе данных, то производит запрос к API и сохраняет контекст в базу данных.
+     * Возвращает контекст из базы данных или API.
+     *
+     * @return контекст для заданного английского слова
+     */
+    public String getContext() {
+        String context = null;
         try {
-            return new ChatGptApi().getResponse(enWord);
+            context = getContentFromDataBase();
+            if (context == null) {
+                addContextToDataBase();
+                context = getContentFromDataBase();
+            }
+        } catch (RuntimeException e) {
+            logger.error("ОШИБКА получения контекста из БД" + e.getMessage());
+        }
+        return context;
+    }
+
+    /* Метод для получения контекста из БД по английскому слову. Если контекст не найден в БД, возвращается null.*/
+    private String getContentFromDataBase() {
+        Connection connection = DatabaseConnection.getConnection();
+
+        String context = null;
+
+        try (PreparedStatement preparedStatement = connection.prepareStatement("" +
+                "SELECT context FROM word_contexts WHERE english_word = ?")) {
+            preparedStatement.setString(1, getEnWord());
+
+            ResultSet resultSet = preparedStatement.executeQuery();
+            logger.info("resultSet получен");
+            if (resultSet.next()) {
+                logger.info("Контекст получен из БД");
+                return resultSet.getString("context");
+            }
+        } catch (SQLException e) {
+            logger.error("Ошибка получения контекста из БД");
+            throw new RuntimeException(e);
+        }
+
+        return null;
+    }
+
+    /*Этот метод добавляет контекст в базу данных для заданного английского слова.*/
+    private void addContextToDataBase() {
+        Connection connection = DatabaseConnection.getConnection();
+        String context;
+
+        try {
+            context = new ChatGptApi().getResponse(getEnWord());
         } catch (IOException e) {
+            logger.error("Ошибка получения контекста из API " + e);
+            throw new RuntimeException(e);
+        }
+
+        try (PreparedStatement preparedStatement = connection.prepareStatement(
+                "INSERT INTO word_contexts " +
+                        "VALUES (?, ?);")) {
+            preparedStatement.setString(1, getEnWord());
+            preparedStatement.setString(2, context);
+
+            preparedStatement.execute();
+            logger.info("Контекст успешно добавлен в Базу данных");
+        } catch (SQLException e) {
+            logger.error("Ошибка добавления контекста в Базу данных");
+            throw new RuntimeException(e);
+        }
+    }
+
+    /* Метод добавляет новое слово в словарь пользователя.
+    Если слово уже есть в словаре, метод возвращает сообщение об этом. Если слово не найдено в базе данных,
+    оно добавляется в базу данных и затем добавляется в словарь пользователя.*/
+    public static String add(@NotNull String word, Long userId) throws TranslationException {
+        nullCheck.checkForNull("add ", word, userId);
+        if (word.length() > 1 || word.equalsIgnoreCase("i")) {
+            Set<Integer> wordId = new HashSet<>();
+            checkNewWordInDB(word, wordId);
+
+            if (wordId.size() == 0) {
+                addNewWordToDBFromTranslator(word, wordId);
+            }
+
+            checkWordInUserDictionary(wordId, userId);
+
+            if (wordId.isEmpty()) {
+                return "Данное слово (или словосочетание) уже находятся в твоем словаре";
+            }
+
+            addNewWordsToUserDictionary(wordId, userId);
+            return "Слово (или словосочетание) успешно добавлено в твой словарь";
+        } else {
+            return "Слово должно состоять из 2 и более букв";
+        }
+    }
+
+    /*Этот метод проверяет наличие слова в базе данных. Если слово найдено в базе данных,
+    его id добавляется в множество wordId. Метод ничего не возвращает, только изменяет переданное ему множество.*/
+    private static void checkNewWordInDB(String word, Set<Integer> wordId) {
+        nullCheck.checkForNull("checkNewWordInDB", word, wordId);
+        Connection connection = DatabaseConnection.getConnection();
+        nullCheck.checkForNull("checkNewWordInDB connection ", connection);
+
+        try {
+            PreparedStatement ps = connection.prepareStatement("SELECT word_id FROM words WHERE LOWER(english_word) = LOWER(?) OR LOWER(russian_word) = LOWER(?)");
+            ps.setString(1, word.toLowerCase());
+            ps.setString(2, word.toLowerCase());
+            ResultSet rs = ps.executeQuery();
+            while (rs.next()) {
+                wordId.add(rs.getInt("word_id"));
+            }
+            logger.info("Проверка нового слова в БД прошла успешно");
+        } catch (SQLException e) {
+            logger.error("Ошибка проверки нового слова в Базе данных " + e);
+            throw new RuntimeException(e);
+        }
+    }
+
+    /*Метод добавляет новое слово в базу данных, полученное из переводчика.
+    В случае успеха, возвращает идентификатор добавленного слова.
+    В случае ошибки, выбрасывает исключение TranslationException.*/
+    private static void addNewWordToDBFromTranslator(String word, Set<Integer> wordId) throws TranslationException {
+        nullCheck.checkForNull("addNewWordToDBFromTranslator ", word, wordId);
+        Connection connection = DatabaseConnection.getConnection();
+        nullCheck.checkForNull("addNewWordToDBFromTranslator connection ", connection);
+        List<String> translatorResult = Word.translate(word);
+        try {
+            PreparedStatement ps = connection.prepareStatement("INSERT INTO words (english_word, russian_word) VALUES (?, ?)");
+            ps.setString(1, translatorResult.get(0));
+            ps.setString(2, translatorResult.get(1));
+            ps.executeUpdate();
+            logger.info("Слово успешно добавлено в общий словарь");
+            ps = connection.prepareStatement("SELECT lastval()");
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                wordId.add(rs.getInt(1));
+            }
+        } catch (SQLException e) {
+            logger.error("Слово успешно добавлено в общий словарь " + e);
+            e.printStackTrace();
+        }
+    }
+
+    /*Метод проверяет, есть ли слова из набора в словаре пользователя.
+    Если слово уже есть в словаре, оно удаляется из набора. */
+    private static void checkWordInUserDictionary(Set<Integer> wordId, Long userId) {
+        nullCheck.checkForNull("checkWordInUserDictionary", wordId, userId);
+        Connection connection = DatabaseConnection.getConnection();
+        nullCheck.checkForNull("checkWordInUserDictionary connection ", connection);
+        try {
+            String commaSeparatedPlaceholders = String.join(",", Collections.nCopies(wordId.size(), "?"));
+            PreparedStatement ps = connection.prepareStatement("SELECT word_id FROM user_word_lists WHERE user_id = ? AND word_id IN (" + commaSeparatedPlaceholders + ")");
+            ps.setLong(1, userId);
+            int count = 2;
+            for (int i : wordId) {
+                ps.setInt(count, i);
+                count++;
+            }
+            ResultSet rs = ps.executeQuery();
+            while (rs.next()) {
+                wordId.remove(rs.getInt("word_id"));
+            }
+            logger.info("Поиск слова в словаре пользователя прошла успешно.");
+        } catch (SQLException e) {
+            logger.error("Ошибка поиска слова в словаре пользователя  " + e);
+            throw new RuntimeException(e);
+        }
+    }
+
+    /*Метод добавляет новые слова в словарь пользователя.
+    Он принимает набор идентификаторов слов и идентификатор пользователя, для которого нужно добавить слова.
+    В цикле происходит добавление каждого слова в таблицу пользовательских слов.*/
+    private static void addNewWordsToUserDictionary(@NotNull Set<Integer> wordId, Long userId) {
+        nullCheck.checkForNull("addNewWordsToUserDictionary ", wordId, userId);
+        Connection connection = DatabaseConnection.getConnection();
+        nullCheck.checkForNull("addNewWordsToUserDictionary connection ", connection);
+        try {
+            for (int id : wordId) {
+                PreparedStatement ps = connection.prepareCall("insert into user_word_lists (user_id, word_id) VALUES (?, ?)");
+                ps.setLong(1, userId);
+                ps.setInt(2, id);
+                ps.executeUpdate();
+                logger.info("Слово успешно добавлено в словарь пользователя.");
+            }
+        } catch (SQLException e) {
+            logger.error("Не удалось добавить слово в словарь пользователя " + e);
             throw new RuntimeException(e);
         }
     }
