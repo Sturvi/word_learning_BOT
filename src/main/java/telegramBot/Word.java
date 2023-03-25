@@ -73,36 +73,57 @@ public class Word implements Serializable {
     }
 
     public static Word getWord(String messageText) {
+        logger.info("Старт метода getWord");
         NullCheck nullCheck = () -> logger;
         nullCheck.checkForNull("getWord", messageText);
+
+        return getWordList(messageText).get(0);
+    }
+
+    public static ArrayList<Word> getWordList(String messageText) {
+        logger.info("Старт метода getWordList");
+        NullCheck nullCheck = () -> logger;
+        nullCheck.checkForNull("getWordList", messageText);
 
         Connection connection = DatabaseConnection.getConnection();
         nullCheck.checkForNull("getWord Connection ", connection);
 
-        String[] words = splitMessageText(messageText);
+        ArrayList<String> words = splitMessageText(messageText);
 
-        try (PreparedStatement preparedStatement = connection.prepareStatement(
-                "SELECT word_id, russian_word, english_word FROM words " +
-                        "WHERE (english_word = ? AND russian_word = ?)" +
-                        "OR (english_word = ? AND russian_word = ?)")) {
-            preparedStatement.setString(1, words[0]);
-            preparedStatement.setString(2, words[1]);
-            preparedStatement.setString(3, words[1]);
-            preparedStatement.setString(4, words[0]);
+        String sql;
+        if (words.size() == 1)
+            sql = "SELECT word_id, russian_word, english_word FROM words " +
+                    "WHERE LOWER(english_word) = LOWER(?) OR LOWER(russian_word) = LOWER(?)";
+        else
+            sql = "SELECT word_id, russian_word, english_word FROM words " +
+                    "WHERE (LOWER(english_word) = LOWER(?) AND LOWER(russian_word) = LOWER(?)) " +
+                    "OR (LOWER(english_word) = LOWER(?) AND LOWER(russian_word) = LOWER(?))";
+
+        ArrayList<Word> wordList = new ArrayList<>();
+
+        try (PreparedStatement preparedStatement = connection.prepareStatement(sql)) {
+            preparedStatement.setString(1, words.get(0));
+            if (words.size() == 1)
+                preparedStatement.setString(2, words.get(0));
+            if (words.size() > 1) {
+                preparedStatement.setString(2, words.get(1));
+                preparedStatement.setString(3, words.get(1));
+                preparedStatement.setString(4, words.get(0));
+            }
 
             ResultSet resultSet = preparedStatement.executeQuery();
 
-            if (resultSet.next()) {
-                logger.info("Объект слова успешно создан");
-                return new Word(resultSet.getString("english_word"),
+            while (resultSet.next()) {
+                wordList.add(new Word(resultSet.getString("english_word"),
                         resultSet.getString("russian_word"),
-                        resultSet.getInt("word_id"));
-            } else
-                throw new WordNotFountException();
-        } catch (SQLException | WordNotFountException e) {
+                        resultSet.getInt("word_id")));
+            }
+        } catch (SQLException e) {
             logger.error("ОШИБКА ПРИ ПОЛУЧЕНИИ СЛОВА ИЗ БД " + e);
             throw new RuntimeException(e);
         }
+
+        return wordList;
     }
 
     /*Получение случайного слова из БД словаря пользователя.*/
@@ -317,7 +338,7 @@ public class Word implements Serializable {
         String context;
 
         try {
-            context = new ChatGptApi().getResponse(getEnWord());
+            context = ChatGptApi.getResponse(getEnWord());
         } catch (IOException e) {
             logger.error("Ошибка получения контекста из API " + e);
             throw new RuntimeException(e);
@@ -348,6 +369,14 @@ public class Word implements Serializable {
 
             if (wordId.size() == 0) {
                 addNewWordToDBFromTranslator(word, wordId);
+                for (Integer temp : wordId) {
+                    try {
+                        logger.info("Слово отправлено для получения контекста");
+                        ChatGptApi.getResponse(Word.getWord(temp).getEnWord());
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
             }
 
             checkWordInUserDictionary(wordId, userId);
@@ -457,14 +486,57 @@ public class Word implements Serializable {
         }
     }
 
-    private static String[] splitMessageText(String text) {
+    private static ArrayList<String> splitMessageText(String text) {
         nullCheck.checkForNull("splitMessageText ", text);
         String[] texts = text.split(" {2}- {2}");
-        nullCheck.checkForNull("splitMessageText ", texts[0], texts[1]);
-        texts[0] = texts[0].trim();
-        texts[1] = texts[1].trim();
+        ArrayList<String> result = new ArrayList<>();
+        for (String temp : texts) {
+            result.add(temp.trim());
+        }
 
-        return texts;
+        return result;
+    }
+
+    /*Метод для удаления слова из списка пользователя. Проверяет наличие необходимых параметров,
+    устанавливает соединение с базой данных, выполняет SQL-запрос на удаление слова из списка и логирует результат.
+    Если удаление не удалось, выбрасывает исключение.*/
+    public Boolean deleteWordFromUserList(Long userId) {
+        nullCheck.checkForNull("removeWord", userId);
+
+        Connection connection = DatabaseConnection.getConnection();
+        nullCheck.checkForNull("removeWord Connection", connection);
+        try (PreparedStatement preparedStatement = connection.prepareStatement(
+                "DELETE FROM user_word_lists where user_id = ? AND word_id = ?;")) {
+            preparedStatement.setLong(1, userId);
+            preparedStatement.setInt(2, getWordId());
+
+            preparedStatement.execute();
+            logger.info("Слово успешно удалено из словаря");
+            return true;
+        } catch (SQLException e) {
+            logger.error("Не удалось удалить слово из словаря" + e);
+            return false;
+        }
+    }
+
+    /*Метод проверяет, содержит ли словарь пользователя заданное слово.
+    Возвращает true, если слово найдено, иначе false. Используется подключение к БД.*/
+    public Boolean checkWordInUserList() {
+        logger.info("Начинается чек слова в словаре пользователя");
+
+        try (PreparedStatement preparedStatement = DatabaseConnection.getConnection().prepareStatement(
+                "SELECT * FROM user_word_lists WHERE word_id = ?")) {
+            preparedStatement.setInt(1, getWordId());
+
+            ResultSet resultSet = preparedStatement.executeQuery();
+
+            if (resultSet.next())
+                return true;
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+
+        return false;
     }
 
     @Override

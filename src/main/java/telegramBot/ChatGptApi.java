@@ -19,9 +19,9 @@ import java.util.List;
 public class ChatGptApi {
 
     private static final Logger logger = Logger.getLogger(ChatGptApi.class);
-    NullCheck nullCheck = () -> logger;
+    static NullCheck nullCheck = () -> logger;
 
-    public String getResponse(String text) throws IOException {
+    public static String getResponse(String text) throws IOException {
         nullCheck.checkForNull("getResponse ", text);
 
         String input = """
@@ -72,7 +72,7 @@ public class ChatGptApi {
     /*Метод getApiKey() используется для получения ключа API из базы данных. Если ключ существует,
     метод возвращает его значение. В противном случае генерируется исключение RuntimeException.
     .*/
-    private String getApiKey() {
+    private static String getApiKey() {
         String apiKey;
 
         try (PreparedStatement preparedStatement = DatabaseConnection.getConnection().prepareStatement(

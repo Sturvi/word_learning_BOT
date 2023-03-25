@@ -71,34 +71,6 @@ public class WordsInDatabase {
         return result.isEmpty() ? null : result;
     }
 
-    public static void removeWord(Long userId, @NotNull String text) {
-        nullCheck.checkForNull("removeWord", userId, text);
-
-        String[] word = text.split(" - ");
-        nullCheck.checkForNull("removeWord word ", word[0], word[1]);
-        word[0] = word[0].trim();
-        word[1] = word[1].trim();
-
-        Connection connection = DatabaseConnection.getConnection();
-        nullCheck.checkForNull("removeWord Connection", connection);
-        try (PreparedStatement preparedStatement = connection.prepareStatement(
-                "DELETE FROM user_word_lists where user_id = ? AND word_id = (" +
-                        "SELECT word_id FROM words WHERE" +
-                        "(russian_word = ? AND english_word = ?) OR " +
-                        "(english_word = ? AND russian_word = ?))")) {
-            preparedStatement.setLong(1, userId);
-            preparedStatement.setString(2, word[0]);
-            preparedStatement.setString(3, word[1]);
-            preparedStatement.setString(4, word[0]);
-            preparedStatement.setString(5, word[1]);
-            preparedStatement.execute();
-            logger.info("Слово успешно удалено из словаря");
-        } catch (SQLException e) {
-            logger.error("Не удалось удалить слово из словаря" + e);
-            throw new RuntimeException(e);
-        }
-    }
-
     /*Метод обновляет прогресс изучения слова в зависимости от его нахождения в списке и количества повторений.
     Важно передать непустые значения userId и word.*/
     public static void updateWordProgress(Long userId, Word word) {
@@ -110,15 +82,15 @@ public class WordsInDatabase {
         String listType = getListTypeFromDB(userId, word);
 
         if (listType.equalsIgnoreCase("learning")) {
-            updateWordProgressInDB("repetition", 1, userId, word);
+            updateWordProgressInDB("repetition", userId, word);
             logger.info("Слово переведено в словарь повторения");
         } else {
             Integer timerValue = getTimerValueFromDB(userId, word);
             if (timerValue < 7) {
-                updateWordProgressInDB(listType, 1, userId, word);
+                updateWordProgressInDB(listType, userId, word);
                 logger.info("Слово обновлено в словаре повторения");
             } else {
-                updateWordProgressInDB("learned", 1, userId, word);
+                updateWordProgressInDB("learned", userId, word);
                 logger.info("Слово переведено в словарь выученных");
             }
         }
@@ -127,8 +99,8 @@ public class WordsInDatabase {
     /*Метод обновляет прогресс изучения слова в базе данных пользователя.
     В таблице "user_word_lists" обновляются поля "list_type", "timer_value" и "last_repetition_time".
     Входные параметры: тип списка, количество повторений, ID пользователя и объект слова.*/
-    private static void updateWordProgressInDB(String listType, Integer timesValue, Long userId, Word word) {
-        nullCheck.checkForNull("updateWordProgressInDB ", listType, timesValue, userId, word);
+    private static void updateWordProgressInDB(String listType, Long userId, Word word) {
+        nullCheck.checkForNull("updateWordProgressInDB ", listType, userId, word);
 
         Connection connection = DatabaseConnection.getConnection();
         nullCheck.checkForNull("updateWordProgressInDB Connection ", connection);
@@ -138,7 +110,7 @@ public class WordsInDatabase {
                         "SET list_type = ?, timer_value = timer_value + ?, last_repetition_time = now() " +
                         "WHERE user_id = ? AND word_id = ?")) {
             preparedStatement.setString(1, listType);
-            preparedStatement.setInt(2, timesValue);
+            preparedStatement.setInt(2, 1);
             preparedStatement.setLong(3, userId);
             preparedStatement.setInt(4, word.getWordId());
             preparedStatement.execute();
