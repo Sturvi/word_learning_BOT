@@ -226,7 +226,7 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
         editMessageReplyMarkup.setChatId(message.getChatId());
         editMessageReplyMarkup.setMessageId(message.getMessageId());
 
-        InlineKeyboardMarkup keyboard = getKeyboardOnlyWishNext(message.getChatId());
+        InlineKeyboardMarkup keyboard = getKeyboardOnlyWishNext();
 
         editMessageReplyMarkup.setReplyMarkup(keyboard);
 
@@ -461,7 +461,7 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
         }
     }
 
-    private InlineKeyboardMarkup getKeyboardOnlyWishNext(Long chatId) {
+    private InlineKeyboardMarkup getKeyboardOnlyWishNext() {
         List<List<InlineKeyboardButton>> keyboard = new ArrayList<>();
 
         keyboard.add(new ArrayList<>());
