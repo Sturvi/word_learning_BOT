@@ -2,7 +2,6 @@ package telegramBot.user;
 
 import dataBase.DatabaseConnection;
 import org.apache.log4j.Logger;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import telegramBot.NullCheck;
 import telegramBot.Word;

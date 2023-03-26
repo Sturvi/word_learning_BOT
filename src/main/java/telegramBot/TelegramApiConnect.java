@@ -1,6 +1,5 @@
 package telegramBot;
 
-import Exceptions.TranslationException;
 import dataBase.DatabaseConnection;
 import org.apache.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
@@ -23,12 +22,15 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import java.util.Set;
 
 /*Данный класс подключается к телеграмм боту, принимает обновления,
 распределяет задачи и отправляет сообщения пользователям*/
 public class TelegramApiConnect extends TelegramLongPollingBot {
 
     private static final Logger logger = Logger.getLogger(TelegramApiConnect.class);
+    String apiKey;
+    String botName;
 
     @Override
     public void onUpdateReceived(Update update) {
@@ -94,16 +96,26 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
                 getRandomWordAndSendToUser(message);
             }
             case ("yes") -> {
+                logger.info("Принят запрос yes");
                 String userMenu = BotsUser.getUserMenu(message.getChatId());
                 assert userMenu != null;
-                if (userMenu.equalsIgnoreCase("inDeleteMenu")) {
-                    Word word = Word.getWord(message.getText());
-                    word.deleteWordFromUserList(userId);
-                    deleteInlineKeyboard(callbackQuery);
-                    editMessageText(userId, message.getMessageId(), "Слово успешно удалено");
-                } else {
-                    deleteInlineKeyboard(callbackQuery);
-                    editMessageText(userId, message.getMessageId(), "Попробуйте снова");
+
+                switch (userMenu) {
+                    case ("inDeleteMenu") -> {
+                        logger.info("Принят запрос yes в inDeleteMenu");
+                        Word word = Word.getWord(message.getText());
+                        word.deleteWordFromUserList(userId);
+                        deleteInlineKeyboard(callbackQuery);
+                        editMessageText(userId, message.getMessageId(), "Слово успешно удалено");
+                    }
+                    case ("inAddMenu") -> {
+                        logger.info("Принят запрос yes в inAddMenu");
+                        Word word = Word.getWord(message.getText());
+                        word.addNewWordsToUserDictionary(userId);
+                        deleteInlineKeyboard(callbackQuery);
+                        editMessageText(userId, message.getMessageId(), "Слово " + word + " добавлено в твой словарь");
+                    }
+                    default -> deleteInlineKeyboard(callbackQuery);
                 }
             }
             case ("no") -> {
@@ -117,10 +129,10 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
         NullCheck nullCheck = () -> logger;
         nullCheck.checkForNull("handleTextMessage ", message);
 
-        String InputMessageText = message.getText().trim();
+        String inputMessageText = message.getText().trim();
         Long userId = message.getChatId();
 
-        switch (InputMessageText) {
+        switch (inputMessageText) {
             case ("/start") -> sendMessage(message, "Добро пожаловать в наш бот по изучению английских слов.");
             case ("\uD83D\uDDD2 Добавить слова") -> {
                 BotsUser.setMenu(userId, "inAddMenu");
@@ -170,13 +182,17 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
                 assert menu != null;
                 switch (menu) {
                     case ("inAddMenu") -> {
-                        try {
-                            sendMessage(message, Word.add(InputMessageText, userId), true);
-                        } catch (TranslationException e) {
-                            sendMessage(message, "К сожалению нам не удалось корректно перевести данное слово. " +
-                                    "Сообщение об ошибке уже отправлено администратору. В скором времени ошибка будет исправлена. " +
-                                    "Эта ошибка не помешает вам добавлять и изучать другие слова");
-                            throw new RuntimeException(e);
+                        Set<Integer> wordIdList = Word.add(inputMessageText, userId);
+
+                        if (wordIdList.isEmpty()) {
+                            sendMessage(message, "Данное слово (или словосочетание) уже находятся в твоем словаре");
+                            return;
+                        }
+
+                        sendMessage(message, "Добавить?..");
+                        for (Integer wordId : wordIdList) {
+                            Word word = Word.getWord(wordId);
+                            sendMessage(message, word.toString(), yesOrNoKeyboard());
                         }
                     }
                     case ("inDeleteMenu") -> {
@@ -224,7 +240,7 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
         editMessageReplyMarkup.setChatId(message.getChatId());
         editMessageReplyMarkup.setMessageId(message.getMessageId());
 
-        InlineKeyboardMarkup keyboard = getKeyboardOnlyWishNext(message.getChatId());
+        InlineKeyboardMarkup keyboard = getKeyboardOnlyWishNext();
 
         editMessageReplyMarkup.setReplyMarkup(keyboard);
 
@@ -442,7 +458,8 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
         return keyboardMarkup;
     }
 
-
+    /*Метод изменения текста сообщения в чате. Принимает id чата, id сообщения и новый текст.
+    Отправляет измененное сообщение.*/
     public void editMessageText(Long chatId, Integer messageId, String newText) {
         EditMessageText editMessage = new EditMessageText();
         // задаем параметры изменяемого сообщения
@@ -459,7 +476,9 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
         }
     }
 
-    private InlineKeyboardMarkup getKeyboardOnlyWishNext(Long chatId) {
+    /*Метод возвращает InlineKeyboardMarkup с одной кнопкой "Следующее слово".
+    Эта кнопка имеет callbackData "next".*/
+    private InlineKeyboardMarkup getKeyboardOnlyWishNext() {
         List<List<InlineKeyboardButton>> keyboard = new ArrayList<>();
 
         keyboard.add(new ArrayList<>());
@@ -477,13 +496,13 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
 
     @Override
     public String getBotUsername() {
-        //return "SturviTestBot"; // test bot name
-        return "@WordLeaningBot";
+        if (botName == null) botName = api.getApiKey("telegram_name");
+        return botName;
     }
 
     @Override
     public String getBotToken() {
-       // return "5857743410:AAHyinYvlTc-grG76012Nqj6Of5SGNgmMvE"; // test token
-        return "5915434126:AAHto2nUM8S1a9cb2Fgxz8F3P45BV4QGp7U";
+        if (apiKey == null) apiKey = api.getApiKey("telegram");
+        return apiKey;
     }
 }
