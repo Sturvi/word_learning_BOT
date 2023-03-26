@@ -10,16 +10,15 @@ import java.io.IOException;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
 
-public class ChatGptApi {
+public class api {
 
-    private static final Logger logger = Logger.getLogger(ChatGptApi.class);
-    static NullCheck nullCheck = () -> logger;
+    private static final Logger logger = Logger.getLogger(api.class);
+    private static final NullCheck nullCheck = () -> logger;
 
     public static String getResponse(String text) throws IOException {
         nullCheck.checkForNull("getResponse ", text);
@@ -39,7 +38,7 @@ public class ChatGptApi {
 
         HttpRequest request = HttpRequest.newBuilder().uri(URI.create("https://api.openai.com/v1/chat/completions"))
                 .header("Content-Type", "application/json")
-                .header("Authorization", "Bearer " + getApiKey())
+                .header("Authorization", "Bearer " + getApiKey("OpenAI"))
                 .POST(HttpRequest.BodyPublishers.ofString(input))
                 .build();
 
@@ -72,11 +71,10 @@ public class ChatGptApi {
     /*Метод getApiKey() используется для получения ключа API из базы данных. Если ключ существует,
     метод возвращает его значение. В противном случае генерируется исключение RuntimeException.
     .*/
-    private static String getApiKey() {
-        String apiKey;
-
+    public static String getApiKey(String apiName) {
         try (PreparedStatement preparedStatement = DatabaseConnection.getConnection().prepareStatement(
-                "SELECT api_key From api_keys WHERE name = 'OpenAI';")) {
+                "SELECT api_key From api_keys WHERE name = ?;")) {
+            preparedStatement.setString(1, apiName);
             ResultSet resultSet = preparedStatement.executeQuery();
 
             if (resultSet.next()){
@@ -90,8 +88,6 @@ public class ChatGptApi {
             logger.error("Ошибка получения ключа из БД " + e);
             throw new RuntimeException(e);
         }
-
-
     }
 }
 

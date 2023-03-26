@@ -29,6 +29,8 @@ import java.util.Random;
 public class TelegramApiConnect extends TelegramLongPollingBot {
 
     private static final Logger logger = Logger.getLogger(TelegramApiConnect.class);
+    String apiKey;
+    String botName;
 
     @Override
     public void onUpdateReceived(Update update) {
@@ -477,13 +479,13 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
 
     @Override
     public String getBotUsername() {
-        //return "SturviTestBot"; // test bot name
-        return "@WordLeaningBot";
+        if (botName == null) botName = api.getApiKey("test_telegram_name");
+        return botName;
     }
 
     @Override
     public String getBotToken() {
-       // return "5857743410:AAHyinYvlTc-grG76012Nqj6Of5SGNgmMvE"; // test token
-        return "5915434126:AAHto2nUM8S1a9cb2Fgxz8F3P45BV4QGp7U";
+        if (apiKey == null) apiKey = api.getApiKey("test_telegram");
+       return apiKey;
     }
 }

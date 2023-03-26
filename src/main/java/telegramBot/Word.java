@@ -1,7 +1,6 @@
 package telegramBot;
 
 import Exceptions.TranslationException;
-import Exceptions.WordNotFountException;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -12,7 +11,6 @@ import okhttp3.*;
 import org.apache.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import telegramBot.user.WordsInDatabase;
 
 import java.io.*;
 import java.sql.Connection;
@@ -234,24 +232,32 @@ public class Word implements Serializable {
         }
     }
 
-    /*Данный метод принимает String и отправляет его в Microsoft TranslatorAPi получает перевод
-    и возвращает его в виде ArrayList, где первый элемент это слово на английском, второй элемент на русском*/
+    /*Метод использует Google API для получения перевода введенного слова с английского на русский язык и наоборот.
+    Результат передается в виде списка строк. Первое слово в листе на английском второе на русском.
+    Если входное слово - null, выбрасывается исключение TranslationException.*/
     private static ArrayList<String> translate(String word) throws TranslationException {
         NullCheck nullCheck = () -> logger;
         nullCheck.checkForNull("translate", word);
-        String key = "9a7b89f2526247049ab6ec3980ae56a8";
-        String location = "germanywestcentral";
+
+        ArrayList<String> resultList = new ArrayList<>();
+        googleApiTranslate(word, "en", resultList);
+        googleApiTranslate(word, "ru", resultList);
+
+        return resultList;
+    }
+
+    /*Метод отправляет запрос на сервис Google Translate для получения перевода слова на заданный язык и
+    добавляет результат в ArrayList результатов. Используется ключ API Google.*/
+    private static void googleApiTranslate (String word, String language, ArrayList<String> resultList){
+        String apiKey = api.getApiKey("google");
         OkHttpClient client = new OkHttpClient();
 
         MediaType mediaType = MediaType.parse("application/json");
         RequestBody body = RequestBody.create(mediaType,
-                "[{\"Text\": \"" + word + "\"}]");
+                "{\"q\": \"" + word + "\", \"target\": \"" + language + "\"}");
         Request request = new Request.Builder()
-                .url("https://api.cognitive.microsofttranslator.com/translate?api-version=3.0&to=en&to=ru")
+                .url("https://translation.googleapis.com/language/translate/v2?key=" + apiKey)
                 .post(body)
-                .addHeader("Ocp-Apim-Subscription-Key", key)
-                // location required if you're using a multi-service or regional (not global) resource.
-                .addHeader("Ocp-Apim-Subscription-Region", location)
                 .addHeader("Content-type", "application/json")
                 .build();
         Response response;
@@ -267,24 +273,14 @@ public class Word implements Serializable {
             throw new RuntimeException(e);
         }
 
-        ArrayList<String> result = new ArrayList<>();
-
         JsonParser jsonParser = new JsonParser();
-        JsonArray jsonArray = jsonParser.parse(jsonString).getAsJsonArray();
-        JsonObject jsonObject = jsonArray.get(0).getAsJsonObject();
+        JsonObject jsonObject = jsonParser.parse(jsonString).getAsJsonObject();
 
-        JsonArray translations = jsonObject.get("translations").getAsJsonArray();
+        JsonObject dataObject = jsonObject.get("data").getAsJsonObject();
+        JsonArray translations = dataObject.get("translations").getAsJsonArray();
         for (JsonElement translation : translations) {
-            JsonObject translationObject = translation.getAsJsonObject();
-            result.add(translationObject.get("text").getAsString());
+            resultList.add(translation.getAsJsonObject().get("translatedText").getAsString());
         }
-
-        if (!(word.equalsIgnoreCase(result.get(0)) || word.equalsIgnoreCase(result.get(1)))) {
-            logger.error("ПРИШЕЛ НЕКОРЕКТНЫЙ ПЕРЕВОД НА СЛОВО `" + word + "`");
-            throw new TranslationException();
-        }
-
-        return result;
     }
 
     /**
@@ -295,6 +291,7 @@ public class Word implements Serializable {
      * @return контекст для заданного английского слова
      */
     public String getContext() {
+        logger.info("Старт метода getContext");
         String context = null;
         try {
             context = getContentFromDataBase();
@@ -334,11 +331,12 @@ public class Word implements Serializable {
 
     /*Этот метод добавляет контекст в базу данных для заданного английского слова.*/
     private void addContextToDataBase() {
+        logger.info("Старт метода addContextToDataBase");
         Connection connection = DatabaseConnection.getConnection();
         String context;
 
         try {
-            context = ChatGptApi.getResponse(getEnWord());
+            context = api.getResponse(getEnWord());
         } catch (IOException e) {
             logger.error("Ошибка получения контекста из API " + e);
             throw new RuntimeException(e);
@@ -361,21 +359,18 @@ public class Word implements Serializable {
     /* Метод добавляет новое слово в словарь пользователя.
     Если слово уже есть в словаре, метод возвращает сообщение об этом. Если слово не найдено в базе данных,
     оно добавляется в базу данных и затем добавляется в словарь пользователя.*/
-    public static String add(@NotNull String word, Long userId) throws TranslationException {
-        nullCheck.checkForNull("add ", word, userId);
-        if (word.length() > 1 || word.equalsIgnoreCase("i")) {
+    public static String add(@NotNull String wordForAdd, Long userId) throws TranslationException {
+        nullCheck.checkForNull("add ", wordForAdd, userId);
+        if (wordForAdd.length() > 1 || wordForAdd.equalsIgnoreCase("i")) {
             Set<Integer> wordId = new HashSet<>();
-            checkNewWordInDB(word, wordId);
+            checkNewWordInDB(wordForAdd, wordId);
 
             if (wordId.size() == 0) {
-                addNewWordToDBFromTranslator(word, wordId);
+                Word word = addNewWordToDBFromTranslator(wordForAdd, wordId);
                 for (Integer temp : wordId) {
-                    try {
-                        logger.info("Слово отправлено для получения контекста");
-                        ChatGptApi.getResponse(Word.getWord(temp).getEnWord());
-                    } catch (IOException e) {
-                        throw new RuntimeException(e);
-                    }
+                    logger.info("Слово отправлено для получения контекста");
+                    Runnable runnable = word::addContextToDataBase;
+                    new Thread(runnable).start();
                 }
             }
 
@@ -417,7 +412,7 @@ public class Word implements Serializable {
     /*Метод добавляет новое слово в базу данных, полученное из переводчика.
     В случае успеха, возвращает идентификатор добавленного слова.
     В случае ошибки, выбрасывает исключение TranslationException.*/
-    private static void addNewWordToDBFromTranslator(String word, Set<Integer> wordId) throws TranslationException {
+    private static Word addNewWordToDBFromTranslator(String word, Set<Integer> wordId) throws TranslationException {
         nullCheck.checkForNull("addNewWordToDBFromTranslator ", word, wordId);
         Connection connection = DatabaseConnection.getConnection();
         nullCheck.checkForNull("addNewWordToDBFromTranslator connection ", connection);
@@ -437,6 +432,8 @@ public class Word implements Serializable {
             logger.error("Слово успешно добавлено в общий словарь " + e);
             e.printStackTrace();
         }
+
+        return Word.getWord(translatorResult.get(0) + "  -  " + translatorResult.get(1));
     }
 
     /*Метод проверяет, есть ли слова из набора в словаре пользователя.
