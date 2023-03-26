@@ -1,6 +1,5 @@
 package telegramBot;
 
-import Exceptions.TranslationException;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -248,7 +247,7 @@ public class Word implements Serializable {
 
     /*Метод отправляет запрос на сервис Google Translate для получения перевода слова на заданный язык и
     добавляет результат в ArrayList результатов. Используется ключ API Google.*/
-    private static void googleApiTranslate (String word, String language, ArrayList<String> resultList){
+    private static void googleApiTranslate(String word, String language, ArrayList<String> resultList) {
         String apiKey = api.getApiKey("google");
         OkHttpClient client = new OkHttpClient();
 
@@ -357,33 +356,25 @@ public class Word implements Serializable {
     /* Метод добавляет новое слово в словарь пользователя.
     Если слово уже есть в словаре, метод возвращает сообщение об этом. Если слово не найдено в базе данных,
     оно добавляется в базу данных и затем добавляется в словарь пользователя.*/
-    public static String add(@NotNull String wordForAdd, Long userId) throws TranslationException {
+    public static Set<Integer> add(@NotNull String wordForAdd, Long userId) {
         nullCheck.checkForNull("add ", wordForAdd, userId);
-        if (wordForAdd.length() > 1 || wordForAdd.equalsIgnoreCase("i")) {
-            Set<Integer> wordIdList = new HashSet<>();
-            checkNewWordInDB(wordForAdd, wordIdList);
 
-            if (wordIdList.size() == 0) {
-                addNewWordToDBFromTranslator(wordForAdd, wordIdList);
-                for (Integer temp : wordIdList) {
-                    Word word = Word.getWord(temp);
-                    logger.info("Слово отправлено для получения контекста");
-                    Runnable runnable = word::addContextToDataBase;
-                    new Thread(runnable).start();
-                }
+        Set<Integer> wordIdList = new HashSet<>();
+        checkNewWordInDB(wordForAdd, wordIdList);
+
+        if (wordIdList.size() == 0) {
+            addNewWordToDBFromTranslator(wordForAdd, wordIdList);
+            for (Integer temp : wordIdList) {
+                Word word = Word.getWord(temp);
+                logger.info("Слово отправлено для получения контекста");
+                Runnable runnable = word::addContextToDataBase;
+                new Thread(runnable).start();
             }
-
-            checkWordInUserDictionary(wordIdList, userId);
-
-            if (wordIdList.isEmpty()) {
-                return "Данное слово (или словосочетание) уже находятся в твоем словаре";
-            }
-
-            addNewWordsToUserDictionary(wordIdList, userId);
-            return "Слово (или словосочетание) успешно добавлено в твой словарь";
-        } else {
-            return "Слово должно состоять из 2 и более букв";
         }
+
+        checkWordInUserDictionary(wordIdList, userId);
+
+        return wordIdList;
     }
 
     /*Этот метод проверяет наличие слова в базе данных. Если слово найдено в базе данных,
@@ -462,18 +453,16 @@ public class Word implements Serializable {
     /*Метод добавляет новые слова в словарь пользователя.
     Он принимает набор идентификаторов слов и идентификатор пользователя, для которого нужно добавить слова.
     В цикле происходит добавление каждого слова в таблицу пользовательских слов.*/
-    private static void addNewWordsToUserDictionary(@NotNull Set<Integer> wordId, Long userId) {
-        nullCheck.checkForNull("addNewWordsToUserDictionary ", wordId, userId);
+    public void addNewWordsToUserDictionary(Long userId) {
+        nullCheck.checkForNull("addNewWordsToUserDictionary ", userId);
         Connection connection = DatabaseConnection.getConnection();
         nullCheck.checkForNull("addNewWordsToUserDictionary connection ", connection);
         try {
-            for (int id : wordId) {
-                PreparedStatement ps = connection.prepareCall("insert into user_word_lists (user_id, word_id) VALUES (?, ?)");
-                ps.setLong(1, userId);
-                ps.setInt(2, id);
-                ps.executeUpdate();
-                logger.info("Слово успешно добавлено в словарь пользователя.");
-            }
+            PreparedStatement ps = connection.prepareCall("insert into user_word_lists (user_id, word_id) VALUES (?, ?)");
+            ps.setLong(1, userId);
+            ps.setInt(2, getWordId());
+            ps.executeUpdate();
+            logger.info("Слово успешно добавлено в словарь пользователя.");
         } catch (SQLException e) {
             logger.error("Не удалось добавить слово в словарь пользователя " + e);
             throw new RuntimeException(e);
@@ -539,5 +528,20 @@ public class Word implements Serializable {
         if (o == null || getClass() != o.getClass()) return false;
         Word word = (Word) o;
         return enWord.equals(word.enWord) && ruWord.equals(word.ruWord);
+    }
+
+    /*Метод возвращает случайное сочетание слов на английском и русском языках.*/
+    public String toStringRandom() {
+        boolean random = new Random().nextBoolean();
+        String tempEnWord = getEnWord().substring(0, 1).toUpperCase() + getEnWord().substring(1);
+        String tempRuWord = getRuWord().substring(0, 1).toUpperCase() + getRuWord().substring(1);
+
+        return random ? tempEnWord + "  -  " + tempRuWord : tempRuWord + "  -  " + tempEnWord;
+    }
+
+    @Override
+    public String toString() {
+        return getEnWord().substring(0, 1).toUpperCase() + getEnWord().substring(1) + "  -  " +
+                getRuWord().substring(0, 1).toUpperCase() + getRuWord().substring(1);
     }
 }
