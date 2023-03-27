@@ -1,5 +1,6 @@
 package telegramBot;
 
+import Exceptions.TranslationException;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -25,11 +26,25 @@ public class Word implements Serializable {
     private final String enWord;
     private final String ruWord;
     private final Integer wordId;
+    private final String transcription;
+
+
+    private Word(String enWord, String ruWord, Integer wordId, String transcription) {
+        this.enWord = enWord;
+        this.ruWord = ruWord;
+        this.wordId = wordId;
+        this.transcription = transcription;
+    }
 
     private Word(String enWord, String ruWord, Integer wordId) {
         this.enWord = enWord;
         this.ruWord = ruWord;
         this.wordId = wordId;
+        this.transcription = "";
+    }
+
+    public String getTranscription() {
+        return transcription;
     }
 
     public Integer getWordId() {
@@ -82,6 +97,8 @@ public class Word implements Serializable {
         NullCheck nullCheck = () -> logger;
         nullCheck.checkForNull("getWordList", messageText);
 
+        messageText = messageText.replaceAll("\\[.*?\\]", "").trim();
+
         Connection connection = DatabaseConnection.getConnection();
         nullCheck.checkForNull("getWord Connection ", connection);
 
@@ -123,8 +140,47 @@ public class Word implements Serializable {
         return wordList;
     }
 
+    public static HashSet<Integer> getRandomNewWordSet(Long userId) {
+        logger.info("Старт метода Word.getRandomNewWordSet");
+
+        NullCheck nullCheck = () -> logger;
+        nullCheck.checkForNull("getWord ", userId);
+
+        Connection connection = DatabaseConnection.getConnection();
+        nullCheck.checkForNull("getWord connection ", connection);
+
+        var wordSet = new HashSet<Integer>();
+
+        try (PreparedStatement preparedStatement = connection.prepareStatement(
+                "SELECT word_id " +
+                        "FROM words " +
+                        "WHERE word_id NOT IN ( " +
+                        "    SELECT word_id " +
+                        "    FROM user_word_lists " +
+                        "    WHERE user_id = ? " +
+                        ") " +
+                        "ORDER BY RANDOM() " +
+                        "LIMIT 10;")) {
+            preparedStatement.setLong(1, userId);
+
+            ResultSet resultSet = preparedStatement.executeQuery();
+            logger.info("Запрос на получения листа случайных слов в БД отправлено");
+
+            while (resultSet.next()){
+                wordSet.add(resultSet.getInt("word_id"));
+            }
+        } catch (SQLException e) {
+            logger.error("Ошибка получения листа случайных слов " + e);
+            throw new RuntimeException(e);
+        }
+
+        return wordSet;
+    }
+
     /*Получение случайного слова из БД словаря пользователя.*/
-    public static @Nullable Word getRandomWord(Long userId) {
+    public static @Nullable Word getRandomWordFromUserDictionary(Long userId) {
+        logger.info("Старт метода Word.getRandomWordFromUserDictionary");
+
         NullCheck nullCheck = () -> logger;
         nullCheck.checkForNull("getWord ", userId);
 
@@ -135,13 +191,14 @@ public class Word implements Serializable {
         String russianWord = null;
         String englishWord = null;
         Integer wordId = null;
+        String transcription = null;
         try (PreparedStatement ps = connection.prepareStatement(
                 "WITH menu AS (" +
                         "   SELECT menu_name " +
                         "   FROM user_menu " +
                         "   WHERE user_id = ? " +
                         ") " +
-                        "SELECT w.word_id, w.russian_word, w.english_word " +
+                        "SELECT w.word_id, w.russian_word, w.english_word, w.transcription " +
                         "FROM words w " +
                         "JOIN ( " +
                         "   SELECT word_id " +
@@ -164,6 +221,7 @@ public class Word implements Serializable {
             if (resultSet.next()) {
                 russianWord = resultSet.getString("russian_word");
                 englishWord = resultSet.getString("english_word");
+                transcription = resultSet.getString("transcription");
                 wordId = resultSet.getInt("word_id");
             }
             logger.info("Слово получено из БД получены");
@@ -173,7 +231,10 @@ public class Word implements Serializable {
         }
 
         if (russianWord != null && englishWord != null)
-            return new Word(englishWord, russianWord, wordId);
+            if (transcription != null)
+                return new Word(englishWord, russianWord, wordId, transcription);
+            else
+                return new Word(englishWord, russianWord, wordId);
         else return null;
     }
 
@@ -356,7 +417,7 @@ public class Word implements Serializable {
     /* Метод добавляет новое слово в словарь пользователя.
     Если слово уже есть в словаре, метод возвращает сообщение об этом. Если слово не найдено в базе данных,
     оно добавляется в базу данных и затем добавляется в словарь пользователя.*/
-    public static Set<Integer> add(@NotNull String wordForAdd, Long userId) {
+    public static Set<Integer> add(@NotNull String wordForAdd, Long userId) throws TranslationException {
         nullCheck.checkForNull("add ", wordForAdd, userId);
 
         Set<Integer> wordIdList = new HashSet<>();
@@ -402,11 +463,17 @@ public class Word implements Serializable {
     /*Метод добавляет новое слово в базу данных, полученное из переводчика.
     В случае успеха, возвращает идентификатор добавленного слова.
     В случае ошибки, выбрасывает исключение TranslationException.*/
-    private static void addNewWordToDBFromTranslator(String word, Set<Integer> wordId) {
+    private static void addNewWordToDBFromTranslator(String word, Set<Integer> wordId) throws TranslationException {
         nullCheck.checkForNull("addNewWordToDBFromTranslator ", word, wordId);
         Connection connection = DatabaseConnection.getConnection();
         nullCheck.checkForNull("addNewWordToDBFromTranslator connection ", connection);
         List<String> translatorResult = Word.translate(word);
+        if (!word.equalsIgnoreCase(translatorResult.get(0)) && !word.equalsIgnoreCase(translatorResult.get(1))) {
+            logger.error("Cлово " + word + " Вернулось из словаря неправильна. оба перевода не совпадают");
+            throw new TranslationException();
+        }
+        translatorResult.set(0, translatorResult.get(0).substring(0, 1).toUpperCase() + translatorResult.get(0).substring(1).toLowerCase());
+        translatorResult.set(1, translatorResult.get(1).substring(0, 1).toUpperCase() + translatorResult.get(1).substring(1).toLowerCase());
         try {
             PreparedStatement ps = connection.prepareStatement("INSERT INTO words (english_word, russian_word) VALUES (?, ?)");
             ps.setString(1, translatorResult.get(0));
@@ -419,7 +486,7 @@ public class Word implements Serializable {
                 wordId.add(rs.getInt(1));
             }
         } catch (SQLException e) {
-            logger.error("Слово успешно добавлено в общий словарь " + e);
+            logger.error("Ошибка добавления в общий словарь " + e);
             e.printStackTrace();
         }
     }
@@ -536,12 +603,25 @@ public class Word implements Serializable {
         String tempEnWord = getEnWord().substring(0, 1).toUpperCase() + getEnWord().substring(1);
         String tempRuWord = getRuWord().substring(0, 1).toUpperCase() + getRuWord().substring(1);
 
-        return random ? tempEnWord + "  -  " + tempRuWord : tempRuWord + "  -  " + tempEnWord;
+        return random ? " <span class='tg-spoiler'> " + tempEnWord + "</span>  -  " + tempRuWord : tempRuWord + "  -  " + " <span class='tg-spoiler'> " + tempEnWord + "</span>";
+    }
+
+    public String toStringRandomWithTranscription() {
+        boolean random = new Random().nextBoolean();
+        String tempEnWord = getEnWord().substring(0, 1).toUpperCase() + getEnWord().substring(1) + "   " + getTranscription();
+        String tempRuWord = getRuWord().substring(0, 1).toUpperCase() + getRuWord().substring(1);
+
+        return random ? " <span class='tg-spoiler'> " + tempEnWord + "</span>  -  " + tempRuWord : tempRuWord + "  -  " + " <span class='tg-spoiler'> " + tempEnWord + "</span>";
     }
 
     @Override
     public String toString() {
         return getEnWord().substring(0, 1).toUpperCase() + getEnWord().substring(1) + "  -  " +
+                getRuWord().substring(0, 1).toUpperCase() + getRuWord().substring(1);
+    }
+
+    public String toStringWithTranscription() {
+        return getEnWord().substring(0, 1).toUpperCase() + getEnWord().substring(1) + "   " + getTranscription() + "  -  " +
                 getRuWord().substring(0, 1).toUpperCase() + getRuWord().substring(1);
     }
 }
