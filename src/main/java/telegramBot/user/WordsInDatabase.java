@@ -27,7 +27,7 @@ public class WordsInDatabase {
         StringBuilder stringBuilder = new StringBuilder();
 
         try (PreparedStatement preparedStatement = connection.prepareStatement(
-                "SELECT w.english_word, w.russian_word, uwl.timer_value " +
+                "SELECT w.word_id, uwl.timer_value " +
                         "FROM words w " +
                         "JOIN user_word_lists uwl ON w.word_id = uwl.word_id " +
                         "WHERE uwl.user_id = ? AND uwl.list_type = ?"
@@ -39,20 +39,20 @@ public class WordsInDatabase {
             if (list_type.equalsIgnoreCase("learning")) {
                 stringBuilder.append("Список слов на изучении:\n");
                 while (resultSet.next()) {
-                    String englishWord = resultSet.getString("english_word");
-                    String russianWord = resultSet.getString("russian_word");
-                    stringBuilder.append(englishWord).append("  -  ").append(russianWord).append("\n");
+                    Integer wordId = resultSet.getInt("word_id");
+                    Word word = Word.getWord(wordId);
+                    stringBuilder.append(word.toString()).append("\n");
                 }
             } else if (list_type.equalsIgnoreCase("repetition")) {
                 Map<Integer, StringBuilder> repetitionWords = new HashMap<>();
                 while (resultSet.next()) {
                     int timerValue = resultSet.getInt("timer_value");
 
-                    String englishWord = resultSet.getString("english_word");
-                    String russianWord = resultSet.getString("russian_word");
+                    Integer wordId = resultSet.getInt("word_id");
+                    Word word = Word.getWord(wordId);
 
                     if (!repetitionWords.containsKey(timerValue)) repetitionWords.put(timerValue, new StringBuilder());
-                    repetitionWords.get(timerValue).append(englishWord).append("  -  ").append(russianWord).append("\n");
+                    repetitionWords.get(timerValue).append(word.toString()).append("\n");
                 }
 
                 for (int i = 1; i < 7; i++) {

@@ -15,25 +15,47 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
 
-public class api {
+public class Api {
 
-    private static final Logger logger = Logger.getLogger(api.class);
+    private static final Logger logger = Logger.getLogger(Api.class);
     private static final NullCheck nullCheck = () -> logger;
 
-    public static String getResponse(String text) throws IOException {
+    public static String getResponse(String text, String contentType) throws IOException {
+        logger.info("Старт метода Api.getResponse");
         nullCheck.checkForNull("getResponse ", text);
-
-        String input = """
-                {
-                  "model": "gpt-3.5-turbo",
-                  "messages": [
-                    {
-                      "role": "system",
-                      "content": "Пришли контекст слова %s на русском максимум в 150 символов"
-                    }
-                  ]
-                }
-                """.formatted(text);
+        String input;
+        switch (contentType) {
+            case ("context") -> {
+                input = """
+                        {
+                          "model": "gpt-3.5-turbo",
+                          "messages": [
+                            {
+                              "role": "system",
+                              "content": "Пришли контекст слова %s на русском максимум в 150 символов"
+                            }
+                          ]
+                        }
+                        """.formatted(text);
+            }
+            case ("usage_examples") -> {
+                input = """
+                        {
+                          "model": "gpt-3.5-turbo",
+                          "messages": [
+                            {
+                              "role": "system",
+                              "content": "Пришли 5 примеров использования слова %s. больше ничего не пиши. Ответ должен полностью соответствовать шаблону. Между переводами символ \\n. перед новой фразой символ \\n\\n. Все должно быть написано в одну строку. Например: I need to purchase additional supplies \\nМне нужно купить дополнительные принадлежности \\n\\n The hotel charges extra for additional guests $$nОтель берет дополнительную плату за дополнительных гостей \\n\\ne will need additional time to finish the project \\nНам понадобится дополнительное время, чтобы завершить проект."
+                            }
+                          ]
+                        }
+                        """.formatted(text);
+            }
+            default -> {
+                logger.error("Неправильный contentType");
+                throw new ChatGptApiException();
+            }
+        }
         logger.info("Пронт на слово " + text + " составлен");
 
         HttpRequest request = HttpRequest.newBuilder().uri(URI.create("https://api.openai.com/v1/chat/completions"))
@@ -77,7 +99,7 @@ public class api {
             preparedStatement.setString(1, apiName);
             ResultSet resultSet = preparedStatement.executeQuery();
 
-            if (resultSet.next()){
+            if (resultSet.next()) {
                 logger.info("Ключ API получен");
                 return resultSet.getString("api_key");
             } else {

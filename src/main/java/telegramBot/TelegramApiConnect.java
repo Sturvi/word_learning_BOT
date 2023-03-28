@@ -90,7 +90,12 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
             case ("context") -> {
                 logger.info("Принят запрос \"На получение контекста\"");
                 Word word = Word.getWord(message.getText());
-                sendMessage(message, word.getContext());
+                sendMessage(message, word.getContextOrUsageExamples("context"));
+            }
+            case ("example") -> {
+                logger.info("Принят запрос \"На получение примера использования\"");
+                Word word = Word.getWord(message.getText());
+                sendMessage(message, word.getContextOrUsageExamples("usage_examples"));
             }
             case ("next") -> {
                 logger.info("Принят запрос на следующее слово");
@@ -327,7 +332,6 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
         sendWordWithVoice(word, message);
     }
 
-
     /*Данный метод отправляет пользователю слово с произношением. В случае невозможность получить аудио файл с произношением
     отправляет просто слово*/
     private void sendWordWithVoice(Word word, Message message) {
@@ -445,18 +449,23 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
         List<List<InlineKeyboardButton>> keyboard = new ArrayList<>();
 
         keyboard.add(new ArrayList<>());
+        keyboard.add(new ArrayList<>());
 
-        InlineKeyboardButton remembered = new InlineKeyboardButton("\uD83D\uDE04 Я вспомнил это слово");
+        InlineKeyboardButton remembered = new InlineKeyboardButton("✅ Вспомнил");
         remembered.setCallbackData("remembered");
-        keyboard.get(0).add(remembered);
+        keyboard.get(1).add(remembered);
 
         InlineKeyboardButton context = new InlineKeyboardButton("Контекст");
         context.setCallbackData("context");
-        keyboard.get(0).add(context);
+        keyboard.get(1).add(context);
 
-        InlineKeyboardButton forgot = new InlineKeyboardButton("\uD83D\uDE14 Я не вспомнил это слово");
+        InlineKeyboardButton example = new InlineKeyboardButton("Пример использования");
+        example.setCallbackData("example");
+        keyboard.get(0).add(example);
+
+        InlineKeyboardButton forgot = new InlineKeyboardButton("⛔️ Не вспомнил");
         forgot.setCallbackData("forgot");
-        keyboard.get(0).add(forgot);
+        keyboard.get(1).add(forgot);
 
         InlineKeyboardMarkup keyboardMarkup = new InlineKeyboardMarkup();
         keyboardMarkup.setKeyboard(keyboard);
@@ -523,13 +532,13 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
 
     @Override
     public String getBotUsername() {
-        if (botName == null) botName = api.getApiKey("telegram_name");
+        if (botName == null) botName = Api.getApiKey("telegram_name");
         return botName;
     }
 
     @Override
     public String getBotToken() {
-        if (apiKey == null) apiKey = api.getApiKey("telegram");
+        if (apiKey == null) apiKey = Api.getApiKey("telegram");
         return apiKey;
     }
 }

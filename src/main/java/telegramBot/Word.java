@@ -1,6 +1,7 @@
 package telegramBot;
 
 import Exceptions.TranslationException;
+import Exceptions.WordTypeException;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -166,7 +167,7 @@ public class Word implements Serializable {
             ResultSet resultSet = preparedStatement.executeQuery();
             logger.info("Запрос на получения листа случайных слов в БД отправлено");
 
-            while (resultSet.next()){
+            while (resultSet.next()) {
                 wordSet.add(resultSet.getInt("word_id"));
             }
         } catch (SQLException e) {
@@ -309,7 +310,7 @@ public class Word implements Serializable {
     /*Метод отправляет запрос на сервис Google Translate для получения перевода слова на заданный язык и
     добавляет результат в ArrayList результатов. Используется ключ API Google.*/
     private static void googleApiTranslate(String word, String language, ArrayList<String> resultList) {
-        String apiKey = api.getApiKey("google");
+        String apiKey = Api.getApiKey("google");
         OkHttpClient client = new OkHttpClient();
 
         MediaType mediaType = MediaType.parse("application/json");
@@ -350,37 +351,41 @@ public class Word implements Serializable {
      *
      * @return контекст для заданного английского слова
      */
-    public String getContext() {
+    public String getContextOrUsageExamples(String contentType) {
         logger.info("Старт метода getContext");
-        String context = null;
+        String content = null;
         try {
-            context = getContentFromDataBase();
-            if (context == null) {
-                addContextToDataBase();
-                context = getContentFromDataBase();
+            content = getContentFromDataBase(contentType);
+            if (content == null) {
+                addContextToDataBase(contentType);
+                content = getContentFromDataBase(contentType);
             }
         } catch (RuntimeException e) {
-            logger.error("ОШИБКА получения контекста из БД" + e.getMessage());
+            logger.error("ОШИБКА получения контекста из БД " + e.getMessage());
         }
-        return context;
+        return content;
     }
 
     /* Метод для получения контекста из БД по английскому слову. Если контекст не найден в БД, возвращается null.*/
-    private String getContentFromDataBase() {
+    private String getContentFromDataBase(String contentType) {
+        logger.info("Старт метода Word.getContentFromDataBase");
         Connection connection = DatabaseConnection.getConnection();
 
+        if (!(contentType.equals("context") || contentType.equals("usage_examples")))
+            throw new WordTypeException();
+
         try (PreparedStatement preparedStatement = connection.prepareStatement("" +
-                "SELECT context FROM word_contexts WHERE english_word = ?")) {
+                "SELECT " + contentType + " FROM word_contexts WHERE english_word = ?")) {
             preparedStatement.setString(1, getEnWord());
 
             ResultSet resultSet = preparedStatement.executeQuery();
             logger.info("resultSet получен");
             if (resultSet.next()) {
-                logger.info("Контекст получен из БД");
-                return resultSet.getString("context");
+                logger.info("Контекст или пример использования получен из БД");
+                return resultSet.getString(contentType);
             }
         } catch (SQLException e) {
-            logger.error("Ошибка получения контекста из БД");
+            logger.error("Ошибка получения контекста или примера использования из БД");
             throw new RuntimeException(e);
         }
 
@@ -388,23 +393,28 @@ public class Word implements Serializable {
     }
 
     /*Этот метод добавляет контекст в базу данных для заданного английского слова.*/
-    private void addContextToDataBase() {
-        logger.info("Старт метода addContextToDataBase");
+    private void addContextToDataBase(String contentType) {
+        logger.info("Старт метода Word.addContextToDataBase");
         Connection connection = DatabaseConnection.getConnection();
-        String context;
+        String content;
+
+        if (!(contentType.equals("context") || contentType.equals("usage_examples")))
+            throw new WordTypeException();
 
         try {
-            context = api.getResponse(getEnWord());
+            content = Api.getResponse(getEnWord(), contentType);
         } catch (IOException e) {
             logger.error("Ошибка получения контекста из API " + e);
             throw new RuntimeException(e);
         }
 
-        try (PreparedStatement preparedStatement = connection.prepareStatement(
-                "INSERT INTO word_contexts " +
-                        "VALUES (?, ?);")) {
+        String sql = "INSERT INTO word_contexts (english_word, " + contentType + ") VALUES (?, ?) " +
+                "ON CONFLICT (english_word) DO UPDATE SET " + contentType + " = ?, context = word_contexts.context;";
+
+        try (PreparedStatement preparedStatement = connection.prepareStatement(sql)) {
             preparedStatement.setString(1, getEnWord());
-            preparedStatement.setString(2, context);
+            preparedStatement.setString(2, content);
+            preparedStatement.setString(3, content);
 
             preparedStatement.execute();
             logger.info("Контекст успешно добавлен в Базу данных");
@@ -428,7 +438,10 @@ public class Word implements Serializable {
             for (Integer temp : wordIdList) {
                 Word word = Word.getWord(temp);
                 logger.info("Слово отправлено для получения контекста");
-                Runnable runnable = word::addContextToDataBase;
+                Runnable runnable = () -> {
+                    word.addContextToDataBase("context");
+                    word.addContextToDataBase("usage_examples");
+                };
                 new Thread(runnable).start();
             }
         }
@@ -603,7 +616,7 @@ public class Word implements Serializable {
         String tempEnWord = getEnWord().substring(0, 1).toUpperCase() + getEnWord().substring(1);
         String tempRuWord = getRuWord().substring(0, 1).toUpperCase() + getRuWord().substring(1);
 
-        return random ? " <span class='tg-spoiler'> " + tempEnWord + "</span>  -  " + tempRuWord : tempRuWord + "  -  " + " <span class='tg-spoiler'> " + tempEnWord + "</span>";
+        return random ? tempEnWord + "  -  " + " <span class='tg-spoiler'> " + tempRuWord + "</span>" : tempRuWord + "  -  " + " <span class='tg-spoiler'> " + tempEnWord + "</span>";
     }
 
     public String toStringRandomWithTranscription() {
@@ -611,7 +624,7 @@ public class Word implements Serializable {
         String tempEnWord = getEnWord().substring(0, 1).toUpperCase() + getEnWord().substring(1) + "   " + getTranscription();
         String tempRuWord = getRuWord().substring(0, 1).toUpperCase() + getRuWord().substring(1);
 
-        return random ? " <span class='tg-spoiler'> " + tempEnWord + "</span>  -  " + tempRuWord : tempRuWord + "  -  " + " <span class='tg-spoiler'> " + tempEnWord + "</span>";
+        return random ? tempEnWord + "  -  " + " <span class='tg-spoiler'> " + tempRuWord + "</span>" : tempRuWord + "  -  " + " <span class='tg-spoiler'> " + tempEnWord + "</span>";
     }
 
     @Override
