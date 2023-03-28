@@ -523,13 +523,13 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
 
     @Override
     public String getBotUsername() {
-        if (botName == null) botName = api.getApiKey("test_telegram_name");
+        if (botName == null) botName = api.getApiKey("telegram_name");
         return botName;
     }
 
     @Override
     public String getBotToken() {
-        if (apiKey == null) apiKey = api.getApiKey("test_telegram");
+        if (apiKey == null) apiKey = api.getApiKey("telegram");
         return apiKey;
     }
 }
