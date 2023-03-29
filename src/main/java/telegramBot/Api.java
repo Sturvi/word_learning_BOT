@@ -25,32 +25,39 @@ public class Api {
         nullCheck.checkForNull("getResponse ", text);
         String input;
         switch (contentType) {
-            case ("context") -> {
-                input = """
+            case ("context") -> input = """
+                    {
+                      "model": "gpt-3.5-turbo",
+                      "messages": [
                         {
-                          "model": "gpt-3.5-turbo",
-                          "messages": [
-                            {
-                              "role": "system",
-                              "content": "Пришли контекст слова %s на русском максимум в 150 символов"
-                            }
-                          ]
+                          "role": "system",
+                          "content": "Пришли контекст слова %s на русском максимум в 150 символов"
                         }
-                        """.formatted(text);
-            }
-            case ("usage_examples") -> {
-                input = """
+                      ]
+                    }
+                    """.formatted(text);
+            case ("usage_examples") -> input = """
+                    {
+                      "model": "gpt-3.5-turbo",
+                      "messages": [
                         {
-                          "model": "gpt-3.5-turbo",
-                          "messages": [
-                            {
-                              "role": "system",
-                              "content": "Пришли 5 примеров использования слова %s. больше ничего не пиши. Ответ должен полностью соответствовать шаблону. Между переводами символ \\n. перед новой фразой символ \\n\\n. Все должно быть написано в одну строку. Например: I need to purchase additional supplies \\nМне нужно купить дополнительные принадлежности \\n\\n The hotel charges extra for additional guests $$nОтель берет дополнительную плату за дополнительных гостей \\n\\ne will need additional time to finish the project \\nНам понадобится дополнительное время, чтобы завершить проект."
-                            }
-                          ]
+                          "role": "system",
+                          "content": "Пришли 5 примеров использования слова %s. больше ничего не пиши. Ответ должен полностью соответствовать шаблону. Между переводами символ \\n. перед новой фразой символ \\n\\n. Все должно быть написано в одну строку. Например: I need to purchase additional supplies \\nМне нужно купить дополнительные принадлежности \\n\\n The hotel charges extra for additional guests $$nОтель берет дополнительную плату за дополнительных гостей \\n\\ne will need additional time to finish the project \\nНам понадобится дополнительное время, чтобы завершить проект."
                         }
-                        """.formatted(text);
-            }
+                      ]
+                    }
+                    """.formatted(text);
+            case ("transcription") -> input = """
+                    {
+                      "model": "gpt-3.5-turbo",
+                      "messages": [
+                        {
+                          "role": "system",
+                          "content": "Пришли транскрипцию к слову %s. Пусть начинается с символа [ и заканчивается символом ] . больше ничего не пиши"
+                        }
+                      ]
+                    }
+                    """.formatted(text);
             default -> {
                 logger.error("Неправильный contentType");
                 throw new ChatGptApiException();
@@ -60,7 +67,7 @@ public class Api {
 
         HttpRequest request = HttpRequest.newBuilder().uri(URI.create("https://api.openai.com/v1/chat/completions"))
                 .header("Content-Type", "application/json")
-                .header("Authorization", "Bearer " + getApiKey("OpenAI"))
+                .header("Authorization", "Bearer " + getApiKey("OpenAI2"))
                 .POST(HttpRequest.BodyPublishers.ofString(input))
                 .build();
 

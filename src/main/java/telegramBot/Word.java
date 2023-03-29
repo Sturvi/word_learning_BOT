@@ -65,9 +65,10 @@ public class Word implements Serializable {
         Connection connection = DatabaseConnection.getConnection();
         String russianWord = null;
         String englishWord = null;
+        String transcription = null;
 
         try (PreparedStatement ps = connection.prepareStatement(
-                "SELECT russian_word, english_word FROM words " +
+                "SELECT russian_word, english_word, transcription FROM words " +
                         "WHERE word_id = ?")) {
             ps.setInt(1, wordId);
             ResultSet resultSet = ps.executeQuery();
@@ -75,6 +76,7 @@ public class Word implements Serializable {
             if (resultSet.next()) {
                 russianWord = resultSet.getString("russian_word");
                 englishWord = resultSet.getString("english_word");
+                transcription = resultSet.getString("transcription");
             }
             logger.info("Слово получено из БД получены");
         } catch (SQLException e) {
@@ -82,7 +84,16 @@ public class Word implements Serializable {
             throw new RuntimeException(e);
         }
 
-        return new Word(englishWord, russianWord, wordId);
+        if (transcription == null) {
+            String finalEnglishWord = englishWord;
+            String finalRussianWord = russianWord;
+            Runnable runnable = () -> new Word(finalEnglishWord, finalRussianWord, wordId).addTranscription();
+            new Thread(runnable).start();
+            transcription = "";
+        }
+
+        return new Word(englishWord, russianWord, wordId, transcription);
+
     }
 
     public static Word getWord(String messageText) {
@@ -107,10 +118,10 @@ public class Word implements Serializable {
 
         String sql;
         if (words.size() == 1)
-            sql = "SELECT word_id, russian_word, english_word FROM words " +
+            sql = "SELECT word_id, russian_word, english_word, transcription FROM words " +
                     "WHERE LOWER(english_word) = LOWER(?) OR LOWER(russian_word) = LOWER(?)";
         else
-            sql = "SELECT word_id, russian_word, english_word FROM words " +
+            sql = "SELECT word_id, russian_word, english_word, transcription FROM words " +
                     "WHERE (LOWER(english_word) = LOWER(?) AND LOWER(russian_word) = LOWER(?)) " +
                     "OR (LOWER(english_word) = LOWER(?) AND LOWER(russian_word) = LOWER(?))";
 
@@ -129,9 +140,18 @@ public class Word implements Serializable {
             ResultSet resultSet = preparedStatement.executeQuery();
 
             while (resultSet.next()) {
-                wordList.add(new Word(resultSet.getString("english_word"),
-                        resultSet.getString("russian_word"),
-                        resultSet.getInt("word_id")));
+                String transcription = resultSet.getString("transcription");
+                String englishWord = resultSet.getString("english_word");
+                String russianWord = resultSet.getString("russian_word");
+                Integer wordId = resultSet.getInt("word_id");
+
+                if (transcription == null){
+                    Runnable runnable = () -> new Word(englishWord, russianWord, wordId).addTranscription();
+                    new Thread(runnable).start();
+                    transcription = "";
+                }
+
+                wordList.add(new Word(englishWord, russianWord, wordId, transcription));
             }
         } catch (SQLException e) {
             logger.error("ОШИБКА ПРИ ПОЛУЧЕНИИ СЛОВА ИЗ БД " + e);
@@ -409,7 +429,7 @@ public class Word implements Serializable {
         }
 
         String sql = "INSERT INTO word_contexts (english_word, " + contentType + ") VALUES (?, ?) " +
-                "ON CONFLICT (english_word) DO UPDATE SET " + contentType + " = ?, context = word_contexts.context;";
+                "ON CONFLICT (english_word) DO UPDATE SET " + contentType + " = ?";
 
         try (PreparedStatement preparedStatement = connection.prepareStatement(sql)) {
             preparedStatement.setString(1, getEnWord());
@@ -449,6 +469,40 @@ public class Word implements Serializable {
         checkWordInUserDictionary(wordIdList, userId);
 
         return wordIdList;
+    }
+
+    private void addTranscription() {
+        logger.info("Старт метода Word.addTranscription");
+        String transcription = null;
+        try {
+            transcription = Api.getResponse(getEnWord(), "transcription");
+        } catch (IOException e) {
+            logger.error("Word.addTranscription Ошибка получения транскрипции");
+        }
+        if (transcription == null) {
+            logger.error("Word.addTranscription транскрипция вернулась null");
+            return;
+        }
+
+        if (!transcription.matches("^\\[.*\\]$")) {
+            logger.error("Word.addTranscription транкрипция не соответствует регулярному выражению");
+            return;
+        }
+
+        Connection connection = DatabaseConnection.getConnection();
+
+        try (PreparedStatement preparedStatement = connection.prepareStatement(
+                "UPDATE words SET transcription = ? WHERE word_id = ?")) {
+            preparedStatement.setString(1, transcription);
+            preparedStatement.setInt(2, getWordId());
+
+            preparedStatement.executeUpdate();
+            logger.info("Word.addTranscription Транскрипция успешно добавлена");
+        } catch (SQLException e) {
+            logger.error("Word.addTranscription не удалось добавить транскрипцию в Базу данных");
+            throw new RuntimeException(e);
+        }
+
     }
 
     /*Этот метод проверяет наличие слова в базе данных. Если слово найдено в базе данных,
