@@ -13,6 +13,7 @@ import java.net.http.HttpResponse;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.Duration;
 import java.util.List;
 
 public class Api {
@@ -69,7 +70,9 @@ public class Api {
                 .header("Content-Type", "application/json")
                 .header("Authorization", "Bearer " + getApiKey("OpenAI2"))
                 .POST(HttpRequest.BodyPublishers.ofString(input))
+                .timeout(Duration.ofSeconds(45))
                 .build();
+
 
         HttpClient client = HttpClient.newHttpClient();
         HttpResponse<String> respone;
