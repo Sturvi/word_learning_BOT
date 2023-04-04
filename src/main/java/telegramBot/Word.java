@@ -522,11 +522,11 @@ public class Word implements Serializable {
     /*Метод добавляет новое слово в базу данных, полученное из переводчика.
     В случае успеха, возвращает идентификатор добавленного слова.
     В случае ошибки, выбрасывает исключение TranslationException.*/
-    private static void addNewWordToDBFromTranslator(String word, Set<Integer> wordId) throws TranslationException {
+    public static ArrayList<String> addNewWordToDBFromTranslator(String word, Set<Integer> wordId) throws TranslationException {
         nullCheck.checkForNull("addNewWordToDBFromTranslator ", word, wordId);
         Connection connection = DatabaseConnection.getConnection();
         nullCheck.checkForNull("addNewWordToDBFromTranslator connection ", connection);
-        List<String> translatorResult = Word.translate(word);
+        var translatorResult = Word.translate(word);
         if (!word.equalsIgnoreCase(translatorResult.get(0)) && !word.equalsIgnoreCase(translatorResult.get(1))) {
             logger.error("Cлово " + word + " Вернулось из словаря неправильна. оба перевода не совпадают");
             throw new TranslationException();
@@ -546,8 +546,8 @@ public class Word implements Serializable {
             }
         } catch (SQLException e) {
             logger.error("Ошибка добавления в общий словарь " + e);
-            e.printStackTrace();
         }
+        return translatorResult;
     }
 
     /*Метод проверяет, есть ли слова из набора в словаре пользователя.

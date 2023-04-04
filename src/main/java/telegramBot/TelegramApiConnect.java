@@ -21,6 +21,7 @@ import telegramBot.user.WordsInDatabase;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -75,6 +76,8 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
         Long userId = message.getChatId();
         String data = callbackQuery.getData();
         String text = callbackQuery.getMessage().getText();
+        String userMenu = BotsUser.getUserMenu(message.getChatId());
+        assert userMenu != null;
 
 
         switch (data) {
@@ -103,9 +106,6 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
             }
             case ("yes") -> {
                 logger.info("Принят запрос yes");
-                String userMenu = BotsUser.getUserMenu(message.getChatId());
-                assert userMenu != null;
-
                 switch (userMenu) {
                     case ("inDeleteMenu") -> {
                         logger.info("Принят запрос yes в inDeleteMenu");
@@ -126,6 +126,28 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
             }
             case ("no") -> {
                 deleteInlineKeyboard(callbackQuery);
+            }
+            case ("translator") -> {
+                logger.info("Принят запрос \"Послать слово в переводчик\"");
+                if (userMenu.equals("inAddMenu")) {
+                    deleteInlineKeyboard(callbackQuery);
+                    String wordForTranslator = text.replaceAll("^.*?\"(.+?)\".*$", "$1");
+                    Word word;
+                    try {
+                        var translatorResult = Word.addNewWordToDBFromTranslator(wordForTranslator, new HashSet<Integer>());
+                        word = Word.getWord(translatorResult.get(0) + "  -  " + translatorResult.get(1));
+                    } catch (TranslationException e) {
+                        sendMessage(message, "К сожалению нам вернулся некорректный перевод из Гугл Переводчика. " +
+                                "Сообщение об ошибке выслано администратору. Скоро ошибка будет исправлена. " +
+                                "Эта ошибка не помешает вам изучать другие слова");
+                        throw new RuntimeException(e);
+                    }
+                    sendMessage(message, "Результат полученный из Google Translator:");
+                    sendMessage(message, word.toString(), yesOrNoKeyboard());
+                } else {
+                    deleteInlineKeyboard(callbackQuery);
+                    sendMessage(message, "Вы не находитесь в меню добавления слов. Пожалуйста, выберите сначала необходимое меню");
+                }
             }
         }
     }
@@ -225,6 +247,7 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
                             Word word = Word.getWord(wordId);
                             sendMessage(message, word.toString(), yesOrNoKeyboard());
                         }
+                        sendMessage(message, "Нет нужного перевода слова \"" + inputMessageText + "\" ?", sendToTranslatorButton());
                     }
                     case ("inDeleteMenu") -> {
                         ArrayList<Word> wordArrayList = Word.getWordList(message.getText());
@@ -473,6 +496,25 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
         logger.info("Клавиатура под сообщения готова");
         return keyboardMarkup;
     }
+
+
+    private InlineKeyboardMarkup sendToTranslatorButton() {
+        logger.info("Метод sendToTranslatorButton стартовал");
+        List<List<InlineKeyboardButton>> keyboard = new ArrayList<>();
+
+        keyboard.add(new ArrayList<>());
+
+        InlineKeyboardButton yes = new InlineKeyboardButton("Получить перевод из Google Translator");
+        yes.setCallbackData("translator");
+        keyboard.get(0).add(yes);
+
+        InlineKeyboardMarkup keyboardMarkup = new InlineKeyboardMarkup();
+        keyboardMarkup.setKeyboard(keyboard);
+
+        logger.info("Клавиатура под сообщения готова");
+        return keyboardMarkup;
+    }
+
 
     private InlineKeyboardMarkup yesOrNoKeyboard() {
         List<List<InlineKeyboardButton>> keyboard = new ArrayList<>();
