@@ -60,6 +60,9 @@ public class Word implements Serializable {
         return ruWord;
     }
 
+    /*Метод получает объект слова из БД по заданному id, содержащему перевод на английский и русский языки,
+    а также транскрипцию на английском языке. Если транскрипция отсутствует в БД, запускается отдельный поток
+    для ее получения.*/
     public static Word getWord(Integer wordId) {
         logger.info("Начало создания нового объекта слова по word_id из БД");
         Connection connection = DatabaseConnection.getConnection();
@@ -93,7 +96,6 @@ public class Word implements Serializable {
         }
 
         return new Word(englishWord, russianWord, wordId, transcription);
-
     }
 
     public static Word getWord(String messageText) {
@@ -208,18 +210,15 @@ public class Word implements Serializable {
         Connection connection = DatabaseConnection.getConnection();
         nullCheck.checkForNull("getWord connection ", connection);
 
-
-        String russianWord = null;
-        String englishWord = null;
         Integer wordId = null;
-        String transcription = null;
+        Word word = null;
         try (PreparedStatement ps = connection.prepareStatement(
                 "WITH menu AS (" +
                         "   SELECT menu_name " +
                         "   FROM user_menu " +
                         "   WHERE user_id = ? " +
                         ") " +
-                        "SELECT w.word_id, w.russian_word, w.english_word, w.transcription " +
+                        "SELECT w.word_id " +
                         "FROM words w " +
                         "JOIN ( " +
                         "   SELECT word_id " +
@@ -240,10 +239,8 @@ public class Word implements Serializable {
             ResultSet resultSet = ps.executeQuery();
 
             if (resultSet.next()) {
-                russianWord = resultSet.getString("russian_word");
-                englishWord = resultSet.getString("english_word");
-                transcription = resultSet.getString("transcription");
                 wordId = resultSet.getInt("word_id");
+                word = Word.getWord(wordId);
             }
             logger.info("Слово получено из БД получены");
         } catch (SQLException e) {
@@ -251,12 +248,7 @@ public class Word implements Serializable {
             throw new RuntimeException(e);
         }
 
-        if (russianWord != null && englishWord != null)
-            if (transcription != null)
-                return new Word(englishWord, russianWord, wordId, transcription);
-            else
-                return new Word(englishWord, russianWord, wordId);
-        else return null;
+        return word;
     }
 
     /*Данный метод при запросе возвращает объект File по адресу которого находится аудио файл с английской озвучкой слова.
@@ -530,11 +522,11 @@ public class Word implements Serializable {
     /*Метод добавляет новое слово в базу данных, полученное из переводчика.
     В случае успеха, возвращает идентификатор добавленного слова.
     В случае ошибки, выбрасывает исключение TranslationException.*/
-    private static void addNewWordToDBFromTranslator(String word, Set<Integer> wordId) throws TranslationException {
+    public static ArrayList<String> addNewWordToDBFromTranslator(String word, Set<Integer> wordId) throws TranslationException {
         nullCheck.checkForNull("addNewWordToDBFromTranslator ", word, wordId);
         Connection connection = DatabaseConnection.getConnection();
         nullCheck.checkForNull("addNewWordToDBFromTranslator connection ", connection);
-        List<String> translatorResult = Word.translate(word);
+        var translatorResult = Word.translate(word);
         if (!word.equalsIgnoreCase(translatorResult.get(0)) && !word.equalsIgnoreCase(translatorResult.get(1))) {
             logger.error("Cлово " + word + " Вернулось из словаря неправильна. оба перевода не совпадают");
             throw new TranslationException();
@@ -554,8 +546,8 @@ public class Word implements Serializable {
             }
         } catch (SQLException e) {
             logger.error("Ошибка добавления в общий словарь " + e);
-            e.printStackTrace();
         }
+        return translatorResult;
     }
 
     /*Метод проверяет, есть ли слова из набора в словаре пользователя.
