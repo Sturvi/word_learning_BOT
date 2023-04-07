@@ -12,6 +12,8 @@ import okhttp3.*;
 import org.apache.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.telegram.telegrambots.meta.TelegramBotsApi;
+import org.telegram.telegrambots.meta.api.objects.Message;
 
 import java.io.*;
 import java.sql.Connection;
@@ -426,7 +428,7 @@ public class Word implements Serializable {
     }
 
     /*Этот метод добавляет контекст в базу данных для заданного английского слова.*/
-    private void addContentToDataBase(String contentType) {
+    void addContentToDataBase(String contentType) {
         logger.info("Старт метода Word.addContextToDataBase");
         Connection connection = DatabaseConnection.getConnection();
         String content;
@@ -460,8 +462,8 @@ public class Word implements Serializable {
     /* Метод добавляет новое слово в словарь пользователя.
     Если слово уже есть в словаре, метод возвращает сообщение об этом. Если слово не найдено в базе данных,
     оно добавляется в базу данных и затем добавляется в словарь пользователя.*/
-    public static Set<Integer> add(@NotNull String wordForAdd, Long userId) throws TranslationException {
-        nullCheck.checkForNull("add ", wordForAdd, userId);
+    public static Set<Integer> add(@NotNull String wordForAdd, Message message) throws TranslationException {
+        nullCheck.checkForNull("add ", wordForAdd, message);
 
         Set<Integer> wordIdList = new HashSet<>();
         checkNewWordInDB(wordForAdd, wordIdList);
@@ -470,18 +472,34 @@ public class Word implements Serializable {
             addNewWordToDBFromTranslator(wordForAdd, wordIdList);
             for (Integer temp : wordIdList) {
                 Word word = Word.getWord(temp);
-                logger.info("Слово отправлено для получения контекста");
-                Runnable runnable = () -> {
-                    word.addContentToDataBase("context");
-                    word.addContentToDataBase("usage_examples");
-                };
-                new Thread(runnable).start();
+                Api.moderation(wordForAdd, word, message);
             }
         }
 
-        checkWordInUserDictionary(wordIdList, userId);
+        checkWordInUserDictionary(wordIdList, message.getChatId());
 
         return wordIdList;
+    }
+
+    void deleteWordFromDataBase(){
+        logger.info("Начало удаления слова " + toString());
+
+        String sql = "DELETE FROM words WHERE word_id = ?;";
+
+        Connection connection = DatabaseConnection.getConnection();
+
+        try (PreparedStatement preparedStatement = connection.prepareStatement(sql);){
+            preparedStatement.setInt(1, getWordId());
+
+            preparedStatement.execute();
+            logger.info("Слово " + toString() + " успешно удалено из Базы Данных");
+
+        } catch (SQLException e) {
+            logger.error("Ошибка удаления слова " + toString() + " из Базы данных " + e);
+            throw new RuntimeException(e);
+        }
+
+
     }
 
     private void addTranscription() {

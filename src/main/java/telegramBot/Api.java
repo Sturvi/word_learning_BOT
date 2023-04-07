@@ -4,6 +4,7 @@ import Exceptions.ChatGptApiException;
 import com.google.gson.Gson;
 import dataBase.DatabaseConnection;
 import org.apache.log4j.Logger;
+import org.telegram.telegrambots.meta.api.objects.Message;
 
 import java.net.URI;
 import java.io.IOException;
@@ -24,9 +25,9 @@ public class Api {
     public static String getResponse(String text, String contentType) throws IOException {
         logger.info("Старт метода Api.getResponse");
         nullCheck.checkForNull("getResponse ", text);
-        String input;
+        String promt;
         switch (contentType) {
-            case ("context") -> input = """
+            case ("context") -> promt = """
                     {
                       "model": "gpt-3.5-turbo",
                       "messages": [
@@ -37,7 +38,7 @@ public class Api {
                       ]
                     }
                     """.formatted(text);
-            case ("usage_examples") -> input = """
+            case ("usage_examples") -> promt = """
                     {
                       "model": "gpt-3.5-turbo",
                       "messages": [
@@ -48,7 +49,7 @@ public class Api {
                       ]
                     }
                     """.formatted(text);
-            case ("transcription") -> input = """
+            case ("transcription") -> promt = """
                     {
                       "model": "gpt-3.5-turbo",
                       "messages": [
@@ -64,12 +65,16 @@ public class Api {
                 throw new ChatGptApiException();
             }
         }
-        logger.info("Пронт на слово " + text + " составлен");
+        logger.info("Промт на слово " + text + " составлен");
 
+        return openAiHttpRequest(promt);
+    }
+
+    private static String openAiHttpRequest(String promt) throws IOException {
         HttpRequest request = HttpRequest.newBuilder().uri(URI.create("https://api.openai.com/v1/chat/completions"))
                 .header("Content-Type", "application/json")
                 .header("Authorization", "Bearer " + getApiKey("OpenAI2"))
-                .POST(HttpRequest.BodyPublishers.ofString(input))
+                .POST(HttpRequest.BodyPublishers.ofString(promt))
                 .timeout(Duration.ofSeconds(45))
                 .build();
 
@@ -96,8 +101,63 @@ public class Api {
             throw new ChatGptApiException();
         }
 
-        // Получаем контекст из объекта ChatCompletion.
         return chatCompletion.getContext();
+    }
+
+    public static Boolean hasModerationPassed(String wordForAdd) throws IOException {
+        logger.info("Старт метода Api.hasModerationPassed");
+        nullCheck.checkForNull("hasModerationPassed ", wordForAdd);
+        String text = "Привет! Я хотел бы добавить слово в свой словарь. Можете ли вы проверить, является ли слово " + wordForAdd +
+                " корректным на английском или русском языке, и можно ли его добавить в мою базу данных, " +
+                "которая содержит как английские, так и русские слова? Ответ должен содержать только true или false. " +
+                "Максимальная длина ответа 5 символов.  Кроме того, я хотел бы убедиться, что любые опечатки будут " +
+                "рассматриваться как ошибки, как на английском, так и на русском языке. Спасибо!";
+        String promt = """
+                {
+                  "model": "gpt-3.5-turbo",
+                  "messages": [
+                    {
+                      "role": "system",
+                      "content": "%s"
+                    }
+                  ]
+                }
+                """.formatted(text);
+
+
+        String result[] = openAiHttpRequest(promt).trim().split("\\P{L}+");
+
+        if (result[0].equalsIgnoreCase("true")) {
+            return true;
+        } else if (result[0].equalsIgnoreCase("false")) {
+            return false;
+        }
+
+        throw new ChatGptApiException();
+    }
+
+    public static void moderation (String wordForAdd, Word word, Message message){
+        Runnable runnable = () -> {
+            logger.info("Слово отправлено на проверку в Chat GPT");
+            try {
+                logger.info("Слово отправлено для получения контекста");
+                if (!Api.hasModerationPassed(wordForAdd)){
+                    String messageText = "К сожалению слово \"" + wordForAdd +
+                            "\", которую вы пытались добавить в свой словарь не прошло модерацию и удалено!\n" +
+                            "Одна из возможных причин, ошибка в наборе слова. " +
+                            "Пожалуйста проверьте правильно ли вы ввели слова и попробуйте заново.";
+                    new TelegramApiConnect().sendMessage(message, messageText);
+                    word.deleteWordFromDataBase();
+                } else {
+                    logger.info("Слово удачно прошло модерацию");
+                    word.addContentToDataBase("context");
+                    word.addContentToDataBase("usage_examples");
+                }
+            } catch (IOException e) {
+                logger.error("Ошибка во время обращения к OpenAI " + e);
+            }
+        };
+        new Thread(runnable).start();
     }
 
     /*Метод getApiKey() используется для получения ключа API из базы данных. Если ключ существует,
