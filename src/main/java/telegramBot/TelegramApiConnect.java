@@ -115,11 +115,16 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
                         editMessageText(userId, message.getMessageId(), "Слово успешно удалено");
                     }
                     case ("inAddMenu") -> {
-                        logger.info("Принят запрос yes в inAddMenu");
-                        Word word = Word.getWord(message.getText());
-                        word.addNewWordsToUserDictionary(userId);
-                        deleteInlineKeyboard(callbackQuery);
-                        editMessageText(userId, message.getMessageId(), "Слово " + word + " добавлено в твой словарь");
+                        try {
+                            logger.info("Принят запрос yes в inAddMenu");
+                            Word word = Word.getWord(message.getText());
+                            word.addNewWordsToUserDictionary(userId);
+                            deleteInlineKeyboard(callbackQuery);
+                            editMessageText(userId, message.getMessageId(), "Слово " + word + " добавлено в твой словарь");
+                        } catch (IndexOutOfBoundsException e) {
+                            deleteInlineKeyboard(callbackQuery);
+                            sendMessage(message, "Извините, но данное слово было удалено из Базы данных");
+                        }
                     }
                     default -> deleteInlineKeyboard(callbackQuery);
                 }
@@ -136,6 +141,7 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
                     try {
                         var translatorResult = Word.addNewWordToDBFromTranslator(wordForTranslator, new HashSet<Integer>());
                         word = Word.getWord(translatorResult.get(0) + "  -  " + translatorResult.get(1));
+                        Api.moderation(wordForTranslator, word, message);
                     } catch (TranslationException e) {
                         sendMessage(message, "К сожалению нам вернулся некорректный перевод из Гугл Переводчика. " +
                                 "Сообщение об ошибке выслано администратору. Скоро ошибка будет исправлена. " +
@@ -239,7 +245,7 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
                     case ("inAddMenu") -> {
                         Set<Integer> wordIdList = null;
                         try {
-                            wordIdList = Word.add(inputMessageText, userId);
+                            wordIdList = Word.add(inputMessageText, message);
                         } catch (TranslationException e) {
                             sendMessage(message, "К сожалению нам вернулся некорректный перевод из Гугл Переводчика. " +
                                     "Сообщение об ошибке выслано администратору. Скоро ошибка будет исправлена. " +
