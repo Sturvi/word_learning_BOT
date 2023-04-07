@@ -108,10 +108,10 @@ public class Api {
         logger.info("Старт метода Api.hasModerationPassed");
         nullCheck.checkForNull("hasModerationPassed ", wordForAdd);
         String text = "Привет! Я хотел бы добавить слово в свой словарь. Можете ли вы проверить, является ли слово " + wordForAdd +
-                " корректным на английском или русском языке, и можно ли его добавить в мою базу данных, " +
-                "которая содержит как английские, так и русские слова? Ответ должен содержать только true или false. " +
+                " корректным на английском языке, и можно ли его добавить в мою базу данных, " +
+                "которая содержит английские слова? Ответ должен содержать только true или false. " +
                 "Максимальная длина ответа 5 символов.  Кроме того, я хотел бы убедиться, что любые опечатки будут " +
-                "рассматриваться как ошибки, как на английском, так и на русском языке. Спасибо!";
+                "рассматриваться как ошибки. Спасибо!";
         String promt = """
                 {
                   "model": "gpt-3.5-turbo",
@@ -126,14 +126,39 @@ public class Api {
 
 
         String result[] = openAiHttpRequest(promt).trim().split("\\P{L}+");
-
+        boolean engControl = false;
         if (result[0].equalsIgnoreCase("true")) {
-            return true;
+            engControl = true;
         } else if (result[0].equalsIgnoreCase("false")) {
-            return false;
+            engControl = false;
         }
 
-        throw new ChatGptApiException();
+        text = "Привет! Я хотел бы добавить слово в свой словарь. Можете ли вы проверить, является ли слово " + wordForAdd +
+                " корректным на русском языке, и можно ли его добавить в мою базу данных, " +
+                "которая содержит русские слова? Ответ должен содержать только true или false. " +
+                "Максимальная длина ответа 5 символов.  Кроме того, я хотел бы убедиться, что любые опечатки будут " +
+                "рассматриваться как ошибки. Спасибо!";
+        promt = """
+                {
+                  "model": "gpt-3.5-turbo",
+                  "messages": [
+                    {
+                      "role": "system",
+                      "content": "%s"
+                    }
+                  ]
+                }
+                """.formatted(text);
+
+        String resultRu[] = openAiHttpRequest(promt).trim().split("\\P{L}+");
+        boolean ruControl = false;
+        if (result[0].equalsIgnoreCase("true")) {
+            ruControl = true;
+        } else if (result[0].equalsIgnoreCase("false")) {
+            ruControl = false;
+        }
+
+        return engControl || ruControl;
     }
 
     public static void moderation (String wordForAdd, Word word, Message message){
