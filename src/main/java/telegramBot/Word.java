@@ -23,7 +23,7 @@ import java.util.*;
 public class Word implements Serializable {
 
     private static final Logger logger = Logger.getLogger(Word.class);
-    static NullCheck nullCheck = () -> logger;
+    private static final NullCheck nullCheck = () -> logger;
     private final String enWord;
     private final String ruWord;
     private final Integer wordId;
@@ -147,7 +147,7 @@ public class Word implements Serializable {
                 String russianWord = resultSet.getString("russian_word");
                 Integer wordId = resultSet.getInt("word_id");
 
-                if (transcription == null){
+                if (transcription == null) {
                     Runnable runnable = () -> new Word(englishWord, russianWord, wordId).addTranscription();
                     new Thread(runnable).start();
                     transcription = "";
@@ -200,7 +200,12 @@ public class Word implements Serializable {
         return wordSet;
     }
 
-    /*Получение случайного слова из БД словаря пользователя.*/
+    /**
+     * Получение случайного слова из БД словаря пользователя.
+     *
+     * @param userId идентификатор пользователя, для которого необходимо получить случайное слово
+     * @return случайное слово из словаря пользователя или null, если слова отсутствуют
+     */
     public static @Nullable Word getRandomWordFromUserDictionary(Long userId) {
         logger.info("Старт метода Word.getRandomWordFromUserDictionary");
 
@@ -210,44 +215,60 @@ public class Word implements Serializable {
         Connection connection = DatabaseConnection.getConnection();
         nullCheck.checkForNull("getWord connection ", connection);
 
-        Integer wordId = null;
+        int wordId;
         Word word = null;
-        try (PreparedStatement ps = connection.prepareStatement(
-                "WITH menu AS (" +
-                        "   SELECT menu_name " +
-                        "   FROM user_menu " +
-                        "   WHERE user_id = ? " +
-                        ") " +
-                        "SELECT w.word_id " +
-                        "FROM words w " +
-                        "JOIN ( " +
-                        "   SELECT word_id " +
-                        "   FROM user_word_lists uwl, menu m " +
-                        "   WHERE uwl.user_id = ? AND ( " +
-                        "       (m.menu_name = 'learning' AND uwl.list_type = 'learning') OR " +
-                        "       (m.menu_name = 'repetition' AND uwl.list_type = 'repetition' AND EXTRACT(day FROM CURRENT_TIMESTAMP - last_repetition_time) >= timer_value) OR " +
-                        "       (m.menu_name = 'mixed' AND ( " +
-                        "           (uwl.list_type = 'learning') OR  " +
-                        "           (uwl.list_type = 'repetition' AND EXTRACT(day FROM CURRENT_TIMESTAMP - last_repetition_time) >= timer_value) " +
-                        "       )) " +
-                        "   ) " +
-                        "   ORDER BY RANDOM() " +
-                        "   LIMIT 1 " +
-                        ") uwl ON w.word_id = uwl.word_id;")) {
+
+        final String SQL_QUERY = "WITH menu AS (" +
+                "   SELECT menu_name " +
+                "   FROM user_menu " +
+                "   WHERE user_id = ? " +
+                ") " +
+                "SELECT w.word_id " +
+                "FROM words w " +
+                "JOIN ( " +
+                "   SELECT word_id " +
+                "   FROM user_word_lists uwl, menu m " +
+                "   WHERE uwl.user_id = ? AND ( " +
+                "       (m.menu_name = 'learning' AND uwl.list_type = 'learning') OR " +
+                "       (m.menu_name = 'repetition' AND uwl.list_type = 'repetition' AND EXTRACT(day FROM CURRENT_TIMESTAMP - last_repetition_time) >= timer_value) OR " +
+                "       (m.menu_name = 'mixed' AND ( " +
+                "           (uwl.list_type = 'learning') OR  " +
+                "           (uwl.list_type = 'repetition' AND EXTRACT(day FROM CURRENT_TIMESTAMP - last_repetition_time) >= timer_value) " +
+                "       )) OR " +
+                "       ((m.menu_name = 'repetition' OR m.menu_name = 'mixed') AND uwl.list_type = 'learned' AND EXTRACT(day FROM CURRENT_TIMESTAMP - last_repetition_time) >= 10) " +
+                "   ) " +
+                "   ORDER BY RANDOM() " +
+                "   LIMIT 1 " +
+                ") uwl ON w.word_id = uwl.word_id;";
+
+        try (PreparedStatement ps = connection.prepareStatement(SQL_QUERY)) {
             ps.setLong(1, userId);
             ps.setLong(2, userId);
             ResultSet resultSet = ps.executeQuery();
 
-            if (resultSet.next()) {
-                wordId = resultSet.getInt("word_id");
-                word = Word.getWord(wordId);
-            }
-            logger.info("Слово получено из БД получены");
+            word = extractWordFromResultSet(resultSet);
+            logger.info("Слово получено из БД");
         } catch (SQLException e) {
             logger.error("Ошибка получения слова из БД " + e);
             throw new RuntimeException(e);
         }
 
+        return word;
+    }
+
+    /**
+     * Извлечение слова из результата выполнения SQL-запроса.
+     *
+     * @param resultSet результат выполнения SQL-запроса
+     * @return слово из результата или null, если слово отсутствует
+     * @throws SQLException при ошибке обработки результата запроса
+     */
+    private static Word extractWordFromResultSet(ResultSet resultSet) throws SQLException {
+        Word word = null;
+        if (resultSet.next()) {
+            int wordId = resultSet.getInt("word_id");
+            word = Word.getWord(wordId);
+        }
         return word;
     }
 
@@ -369,7 +390,7 @@ public class Word implements Serializable {
         try {
             content = getContentFromDataBase(contentType);
             if (content == null) {
-                addContextToDataBase(contentType);
+                addContentToDataBase(contentType);
                 content = getContentFromDataBase(contentType);
             }
         } catch (RuntimeException e) {
@@ -386,7 +407,7 @@ public class Word implements Serializable {
         if (!(contentType.equals("context") || contentType.equals("usage_examples")))
             throw new WordTypeException();
 
-        try (PreparedStatement preparedStatement = connection.prepareStatement("" +
+        try (PreparedStatement preparedStatement = connection.prepareStatement(
                 "SELECT " + contentType + " FROM word_contexts WHERE english_word = ?")) {
             preparedStatement.setString(1, getEnWord());
 
@@ -405,7 +426,7 @@ public class Word implements Serializable {
     }
 
     /*Этот метод добавляет контекст в базу данных для заданного английского слова.*/
-    private void addContextToDataBase(String contentType) {
+    private void addContentToDataBase(String contentType) {
         logger.info("Старт метода Word.addContextToDataBase");
         Connection connection = DatabaseConnection.getConnection();
         String content;
@@ -451,8 +472,8 @@ public class Word implements Serializable {
                 Word word = Word.getWord(temp);
                 logger.info("Слово отправлено для получения контекста");
                 Runnable runnable = () -> {
-                    word.addContextToDataBase("context");
-                    word.addContextToDataBase("usage_examples");
+                    word.addContentToDataBase("context");
+                    word.addContentToDataBase("usage_examples");
                 };
                 new Thread(runnable).start();
             }
@@ -595,6 +616,104 @@ public class Word implements Serializable {
         }
     }
 
+    /**
+     * Возвращает список слов определенного типа, связанных с пользователем.
+     *
+     * @param userId   идентификатор пользователя
+     * @param listType тип списка слов ("learning" или "repetition")
+     * @return список строк с информацией о словах или пустой список, если список пуст
+     */
+    public static ArrayList<String> fetchUserWords(Long userId, String listType) {
+        nullCheck.checkForNull("getWordList ", userId, listType);
+        Connection connection = DatabaseConnection.getConnection();
+        nullCheck.checkForNull("getWordList Connection ", connection);
+        var messagesList = new ArrayList<String>();
+
+        try (PreparedStatement preparedStatement = connection.prepareStatement(
+                "SELECT w.word_id, uwl.timer_value " +
+                        "FROM words w " +
+                        "JOIN user_word_lists uwl ON w.word_id = uwl.word_id " +
+                        "WHERE uwl.user_id = ? AND uwl.list_type = ?"
+        )) {
+            preparedStatement.setLong(1, userId);
+            preparedStatement.setString(2, listType);
+            ResultSet resultSet = preparedStatement.executeQuery();
+
+            switch (listType.toLowerCase()) {
+                case "learning" -> messagesList = processLearningList(resultSet);
+                case "repetition" -> messagesList = processRepetitionList(resultSet);
+            }
+        } catch (SQLException e) {
+            logger.error("Получение листа из БД", e);
+            throw new RuntimeException(e);
+        }
+
+        return messagesList.isEmpty() ? new ArrayList<>() : messagesList;
+    }
+
+    /**
+     * Обрабатывает список слов на изучении.
+     *
+     * @param resultSet результат выполнения SQL-запроса, содержащий слова на изучении
+     * @return список строк с информацией о словах на изучении
+     * @throws SQLException если возникает ошибка при обработке результата SQL-запроса
+     */
+    private static @NotNull ArrayList<String> processLearningList(@NotNull ResultSet resultSet) throws SQLException {
+        ArrayList<String> messagesList = new ArrayList<>();
+        StringBuilder stringBuilder = new StringBuilder();
+        stringBuilder.append("Список слов на изучении:\n\n");
+        while (resultSet.next()) {
+            Integer wordId = resultSet.getInt("word_id");
+            Word word = Word.getWord(wordId);
+            if (stringBuilder.length() + word.toString().length() > 4000) {
+                messagesList.add(stringBuilder.toString().trim());
+                stringBuilder = new StringBuilder();
+            }
+            stringBuilder.append(word).append("\n");
+        }
+        messagesList.add(stringBuilder.toString().trim());
+        return messagesList;
+    }
+
+    /**
+     * Обрабатывает список слов на повторении.
+     *
+     * @param resultSet результат выполнения SQL-запроса, содержащий слова на повторении
+     * @return список строк с информацией о словах на повторении, сгруппированных по уровням
+     * @throws SQLException если возникает ошибка при обработке результата SQL-запроса
+     */
+    private static @NotNull ArrayList<String> processRepetitionList(@NotNull ResultSet resultSet) throws SQLException {
+        ArrayList<String> messagesList = new ArrayList<>();
+        Map<Integer, ArrayList<Word>> repetitionWords = new HashMap<>();
+        while (resultSet.next()) {
+            Integer timerValue = resultSet.getInt("timer_value");
+
+            Integer wordId = resultSet.getInt("word_id");
+            Word word = Word.getWord(wordId);
+
+            if (!repetitionWords.containsKey(timerValue))
+                repetitionWords.put(timerValue, new ArrayList<>());
+            repetitionWords.get(timerValue).add(word);
+        }
+
+        for (int i = 1; i < 7; i++) {
+            StringBuilder stringBuilder = new StringBuilder();
+            if (repetitionWords.containsKey(i)) {
+                stringBuilder.append("Слова на повторении ").append(i).append(" уровня \n\n");
+                for (Word word : repetitionWords.get(i)) {
+                    if (stringBuilder.length() + word.toString().length() > 4000) {
+                        messagesList.add(stringBuilder.toString().trim());
+                        stringBuilder = new StringBuilder();
+                    }
+                    stringBuilder.append(word.toString()).append("\n");
+                }
+                messagesList.add(stringBuilder.toString().trim());
+            }
+        }
+
+        return messagesList;
+    }
+
     private static ArrayList<String> splitMessageText(String text) {
         nullCheck.checkForNull("splitMessageText ", text);
         String[] texts = text.split(" {2}- {2}");
@@ -648,14 +767,6 @@ public class Word implements Serializable {
         return false;
     }
 
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        Word word = (Word) o;
-        return enWord.equals(word.enWord) && ruWord.equals(word.ruWord);
-    }
-
     /*Метод возвращает случайное сочетание слов на английском и русском языках.*/
     public String toStringRandom() {
         boolean random = new Random().nextBoolean();
@@ -682,5 +793,18 @@ public class Word implements Serializable {
     public String toStringWithTranscription() {
         return getEnWord().substring(0, 1).toUpperCase() + getEnWord().substring(1) + "   " + getTranscription() + "  -  " +
                 getRuWord().substring(0, 1).toUpperCase() + getRuWord().substring(1);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Word word = (Word) o;
+        return Objects.equals(wordId, word.wordId);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(wordId);
     }
 }

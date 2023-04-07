@@ -30,8 +30,8 @@ import java.util.Set;
 public class TelegramApiConnect extends TelegramLongPollingBot {
 
     private static final Logger logger = Logger.getLogger(TelegramApiConnect.class);
-    String apiKey;
-    String botName;
+    private String apiKey;
+    private String botName;
 
 
     @Override
@@ -83,7 +83,7 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
         switch (data) {
             case ("remembered") -> {
                 logger.info("Принят запрос \"Я Вспомнил это слово\"");
-                WordsInDatabase.updateWordProgress(userId, Word.getWord(text));
+                WordsInDatabase.updateUserWordProgress(userId, Word.getWord(text));
                 editKeyboardAfterLeanedOrForgot(callbackQuery);
             }
             case ("forgot") -> {
@@ -187,15 +187,25 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
             }
             case ("\uD83D\uDCD3 Список изучаемых слов") -> {
                 BotsUser.setMenu(userId, "AllFalse");
-                String messageText = WordsInDatabase.getWordList(userId, "learning");
-                if (messageText == null) messageText = "В вашем словаре нет слов на изучении";
-                sendMessage(message, messageText);
+                var messagesText = Word.fetchUserWords(userId, "learning");
+                if (messagesText.isEmpty())
+                    sendMessage(message, "В вашем словаре нет слов на изучении");
+                else {
+                    for (String messageText : messagesText) {
+                        sendMessage(message, messageText);
+                    }
+                }
             }
             case ("\uD83D\uDCD3 Список слов на повторении") -> {
                 BotsUser.setMenu(userId, "AllFalse");
-                String messageText = WordsInDatabase.getWordList(userId, "repetition");
-                if (messageText == null) messageText = "В вашем словаре нет слов на повторении";
-                sendMessage(message, messageText);
+                var messagesText = Word.fetchUserWords(userId, "repetition");
+                if (messagesText.isEmpty())
+                    sendMessage(message, "В вашем словаре нет слов на повторении");
+                else {
+                    for (String messageText : messagesText) {
+                        sendMessage(message, messageText);
+                    }
+                }
             }
             case ("\uD83D\uDCD6 Добавить случайные слова") -> {
                 logger.info("Начало обработки \uD83D\uDCD6 Добавить случайные слова");
@@ -239,6 +249,7 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
                         assert wordIdList != null;
                         if (wordIdList.isEmpty()) {
                             sendMessage(message, "Данное слово (или словосочетание) уже находятся в твоем словаре");
+                            sendMessage(message, "Нужен другой перевод слова \"" + inputMessageText + "\" ?", sendToTranslatorButton());
                             return;
                         }
 

@@ -14,65 +14,23 @@ import java.util.*;
 
 public class WordsInDatabase {
 
+    private static final String LEARNING_LIST_TYPE = "learning";
+    private static final String REPETITION_LIST_TYPE = "repetition";
+    private static final String LEARNED_LIST_TYPE = "learned";
+    private static final String LIST_TYPE_FIELD = "list_type";
     private static final Logger logger = Logger.getLogger(WordsInDatabase.class);
     private static final NullCheck nullCheck = () -> logger;
 
 
-    /*Метод получает список слов пользователя, указанного типа. Если тип "learning", список слов на изучении.
-    Если тип "repetition", список слов на повторении (по уровням). Возвращает список в виде строки.*/
-    public static @Nullable String getWordList(Long userId, String list_type) {
-        nullCheck.checkForNull("getWordList ", userId, list_type);
-        Connection connection = DatabaseConnection.getConnection();
-        nullCheck.checkForNull("getWordList Connection ", connection);
-        StringBuilder stringBuilder = new StringBuilder();
-
-        try (PreparedStatement preparedStatement = connection.prepareStatement(
-                "SELECT w.word_id, uwl.timer_value " +
-                        "FROM words w " +
-                        "JOIN user_word_lists uwl ON w.word_id = uwl.word_id " +
-                        "WHERE uwl.user_id = ? AND uwl.list_type = ?"
-        )) {
-            preparedStatement.setLong(1, userId);
-            preparedStatement.setString(2, list_type);
-            ResultSet resultSet = preparedStatement.executeQuery();
-
-            if (list_type.equalsIgnoreCase("learning")) {
-                stringBuilder.append("Список слов на изучении:\n");
-                while (resultSet.next()) {
-                    Integer wordId = resultSet.getInt("word_id");
-                    Word word = Word.getWord(wordId);
-                    stringBuilder.append(word.toString()).append("\n");
-                }
-            } else if (list_type.equalsIgnoreCase("repetition")) {
-                Map<Integer, StringBuilder> repetitionWords = new HashMap<>();
-                while (resultSet.next()) {
-                    int timerValue = resultSet.getInt("timer_value");
-
-                    Integer wordId = resultSet.getInt("word_id");
-                    Word word = Word.getWord(wordId);
-
-                    if (!repetitionWords.containsKey(timerValue)) repetitionWords.put(timerValue, new StringBuilder());
-                    repetitionWords.get(timerValue).append(word.toString()).append("\n");
-                }
-
-                for (int i = 1; i < 7; i++) {
-                    if (repetitionWords.containsKey(i)) {
-                        stringBuilder.append("Слова на повторении ").append(i).append(" уровня \n").append(repetitionWords.get(i)).append("\n");
-                    }
-                }
-            }
-        } catch (SQLException e) {
-            logger.error("Получение листа из БД" + e);
-            throw new RuntimeException(e);
-        }
-
-        String result = stringBuilder.toString().trim();
-        return result.isEmpty() ? null : result;
-    }
-
-    /*Метод обновляет прогресс изучения слова в зависимости от его нахождения в списке и количества повторений.
-    Важно передать непустые значения userId и word.*/
-    public static void updateWordProgress(Long userId, Word word) {
+    /**
+     * Обновляет прогресс изучения слова для указанного пользователя, перемещая слово между списками (изучаемые, повторение, выученные)
+     * в зависимости от текущего списка и количества повторений.
+     *
+     * @param userId идентификатор пользователя
+     * @param word   объект слова
+     */
+    public static void updateUserWordProgress(Long userId, Word word) {
+        // Проверка на null значений
         nullCheck.checkForNull("changeWordListType ", userId, word);
 
         Connection connection = DatabaseConnection.getConnection();
@@ -80,33 +38,43 @@ public class WordsInDatabase {
 
         String listType = getListTypeFromDB(userId, word);
 
-        if (listType.equalsIgnoreCase("learning")) {
-            updateWordProgressInDB("repetition", userId, word);
+        // Переводим слово из списка "изучаемые" в список "повторение"
+        if (listType.equalsIgnoreCase(LEARNING_LIST_TYPE)) {
+            updateUserWordProgressInDB(REPETITION_LIST_TYPE, userId, word);
             logger.info("Слово переведено в словарь повторения");
         } else {
-            Integer timerValue = getTimerValueFromDB(userId, word);
-            if (timerValue < 7) {
-                updateWordProgressInDB(listType, userId, word);
+            // Обновляем прогресс слова в списке "повторение"
+            Integer repetitions = getRepetitionsFromDB(userId, word);
+            if (repetitions < 7) {
+                updateUserWordProgressInDB(listType, userId, word);
                 logger.info("Слово обновлено в словаре повторения");
             } else {
-                updateWordProgressInDB("learned", userId, word);
+                // Переводим слово в список "выученные"
+                updateUserWordProgressInDB(LEARNED_LIST_TYPE, userId, word);
                 logger.info("Слово переведено в словарь выученных");
             }
         }
     }
 
-    /*Метод обновляет прогресс изучения слова в базе данных пользователя.
-    В таблице "user_word_lists" обновляются поля "list_type", "timer_value" и "last_repetition_time".
-    Входные параметры: тип списка, количество повторений, ID пользователя и объект слова.*/
-    private static void updateWordProgressInDB(String listType, Long userId, Word word) {
-        nullCheck.checkForNull("updateWordProgressInDB ", listType, userId, word);
+    /**
+     * Обновляет прогресс изучения слова в базе данных пользователя.
+     * В таблице "user_word_lists" обновляются поля "list_type", "timer_value" и "last_repetition_time".
+     *
+     * @param listType тип списка (изучаемые, повторение, выученные)
+     * @param userId   идентификатор пользователя
+     * @param word     объект слова
+     */
+    private static void updateUserWordProgressInDB(String listType, Long userId, Word word) {
+        // Проверка на null значений
+        nullCheck.checkForNull("updateUserWordProgressInDB ", listType, userId, word);
 
         Connection connection = DatabaseConnection.getConnection();
-        nullCheck.checkForNull("updateWordProgressInDB Connection ", connection);
+        nullCheck.checkForNull("updateUserWordProgressInDB Connection ", connection);
 
+        // Обновление прогресса слова в базе данных
         try (PreparedStatement preparedStatement = connection.prepareStatement(
                 "UPDATE user_word_lists " +
-                        "SET list_type = ?, timer_value = timer_value + ?, last_repetition_time = now() " +
+                        "SET " + LIST_TYPE_FIELD + " = ?, timer_value = timer_value + ?, last_repetition_time = now() " +
                         "WHERE user_id = ? AND word_id = ?")) {
             preparedStatement.setString(1, listType);
             preparedStatement.setInt(2, 1);
@@ -146,7 +114,7 @@ public class WordsInDatabase {
 
     /*Метод получает из БД значение таймера для определенного пользователя и слова.
     В случае ошибки выбрасывает исключение.*/
-    private static Integer getTimerValueFromDB(Long userId, Word word) {
+    private static Integer getRepetitionsFromDB(Long userId, Word word) {
         nullCheck.checkForNull("getTimesValue ", userId, word);
 
         Connection connection = DatabaseConnection.getConnection();

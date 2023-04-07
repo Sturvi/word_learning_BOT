@@ -12,7 +12,7 @@ import java.time.ZoneId;
 
 
 public class DatabaseConnection {
-    private static final String url = "jdbc:postgresql://185.125.200.162:5432/word_bot_db";
+    private static final String url = "jdbc:postgresql://10.8.0.1:5432/word_bot_db";
     private static final String username = "postgres";
     private static final String password = "56485648";
     private static Connection connection = null;
