@@ -19,8 +19,8 @@ import java.util.List;
 
 public class Api {
 
-    private static final Logger logger = Logger.getLogger(Api.class);
-    private static final NullCheck nullCheck = () -> logger;
+    private static final Logger LOGGER = Logger.getLogger(Api.class);
+    private static final NullCheck nullCheck = () -> LOGGER;
 
     /**
      * Получает ответ от Chat GPT API на основе текста и типа контента.
@@ -31,7 +31,7 @@ public class Api {
      * @throws IOException В случае ошибки сети или обработки запроса.
      */
     public static String getResponse(String text, @NotNull String contentType) throws IOException {
-        logger.info("Старт метода Api.getResponse");
+        LOGGER.info("Старт метода Api.getResponse");
         nullCheck.checkForNull("getResponse ", text);
 
         // Формирование промпта на основе contentType
@@ -71,12 +71,12 @@ public class Api {
                 }
                 """.formatted(text);
             default -> {
-                logger.error("Неправильный contentType");
+                LOGGER.error("Неправильный contentType");
                 throw new ChatGptApiException();
             }
         }
 
-        logger.info("Промпт на слово " + text + " составлен");
+        LOGGER.info("Промпт на слово " + text + " составлен");
 
         // Отправка запроса к OpenAI Chat GPT API и получение ответа
         return openAiHttpRequest(prompt);
@@ -106,9 +106,9 @@ public class Api {
         // Отправка запроса и получение ответа
         try {
             response = client.send(request, HttpResponse.BodyHandlers.ofString());
-            logger.info("Запрос в Chat GPT API отправлен.");
+            LOGGER.info("Запрос в Chat GPT API отправлен.");
         } catch (InterruptedException e) {
-            logger.error("Ошибка отправки запроса в Chat GPT API");
+            LOGGER.error("Ошибка отправки запроса в Chat GPT API");
             throw new RuntimeException(e);
         }
 
@@ -123,7 +123,7 @@ public class Api {
 
         // Проверка наличия контента в ответе и генерация исключения, если контент отсутствует
         if (chatCompletion.getContext() == null) {
-            logger.error("Ошибка получения контента. вернулся null");
+            LOGGER.error("Ошибка получения контента. вернулся null");
             throw new ChatGptApiException();
         }
 
@@ -139,7 +139,7 @@ public class Api {
      * @throws IOException В случае ошибки ввода-вывода.
      */
     public static @NotNull Boolean hasModerationPassed(String wordForAdd) throws IOException {
-        logger.info("Старт метода Api.hasModerationPassed");
+        LOGGER.info("Старт метода Api.hasModerationPassed");
         nullCheck.checkForNull("hasModerationPassed ", wordForAdd);
 
         // Проверка корректности слова на английском языке
@@ -198,9 +198,9 @@ public class Api {
     public static void moderation(String wordForAdd, Word word, BotUser user) {
         // Создание отдельного потока для асинхронной модерации слова
         Runnable moderationTask = () -> {
-            logger.info("Слово отправлено на проверку в Chat GPT");
+            LOGGER.info("Слово отправлено на проверку в Chat GPT");
             try {
-                logger.info("Слово отправлено для получения контекста");
+                LOGGER.info("Слово отправлено для получения контекста");
 
                 // Проверка слова на прохождение модерации
                 if (!Api.hasModerationPassed(wordForAdd)) {
@@ -213,19 +213,18 @@ public class Api {
                     word.deleteWordFromDataBase();
                 } else {
                     // Если слово прошло модерацию, добавляем контекст и примеры использования в базу данных
-                    logger.info("Слово удачно прошло модерацию");
+                    LOGGER.info("Слово удачно прошло модерацию");
                     word.addContentToDataBase("context");
                     word.addContentToDataBase("usage_examples");
                 }
             } catch (IOException e) {
-                logger.error("Ошибка во время обращения к OpenAI " + e);
+                LOGGER.error("Ошибка во время обращения к OpenAI " + e);
             }
         };
 
         // Запуск потока для выполнения модерации
         new Thread(moderationTask).start();
     }
-
 
     /**
      * Получает ключ API для указанного имени API из базы данных.
@@ -248,14 +247,14 @@ public class Api {
 
             // Если результат содержит запись, возвращаем значение ключа API
             if (resultSet.next()) {
-                logger.info("Ключ API получен");
+                LOGGER.info("Ключ API получен");
                 return resultSet.getString("api_key");
             } else {
-                logger.error("Result SET вернулся null");
+                LOGGER.error("Result SET вернулся null");
                 throw new RuntimeException("API key not found for API name: " + apiName);
             }
         } catch (SQLException e) {
-            logger.error("Ошибка получения ключа из БД " + e);
+            LOGGER.error("Ошибка получения ключа из БД " + e);
             throw new RuntimeException("Error retrieving API key from database: ", e);
         }
     }

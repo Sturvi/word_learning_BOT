@@ -22,13 +22,12 @@ import java.util.*;
 
 public class Word implements Serializable {
 
-    private static final Logger logger = Logger.getLogger(Word.class);
-    private static final NullCheck nullCheck = () -> logger;
+    private static final Logger LOGGER = Logger.getLogger(Word.class);
+    private static final NullCheck nullCheck = () -> LOGGER;
     private final String enWord;
     private final String ruWord;
     private final Integer wordId;
     private final String transcription;
-
 
     private Word(String enWord, String ruWord, Integer wordId, String transcription) {
         this.enWord = enWord;
@@ -44,27 +43,52 @@ public class Word implements Serializable {
         this.transcription = "";
     }
 
+    /**
+     * Возвращает транскрипцию слова на английском языке.
+     *
+     * @return строка с транскрипцией слова
+     */
     public String getTranscription() {
         return transcription;
     }
 
+    /**
+     * Возвращает идентификатор слова в базе данных.
+     *
+     * @return идентификатор слова в базе данных
+     */
     public Integer getWordId() {
         return wordId;
     }
 
+    /**
+     * Возвращает английскую версию слова.
+     *
+     * @return строка с английским словом
+     */
     public String getEnWord() {
         return enWord;
     }
 
+    /**
+     * Возвращает русскую версию слова.
+     *
+     * @return строка с русским словом
+     */
     public String getRuWord() {
         return ruWord;
     }
 
-    /*Метод получает объект слова из БД по заданному id, содержащему перевод на английский и русский языки,
-    а также транскрипцию на английском языке. Если транскрипция отсутствует в БД, запускается отдельный поток
-    для ее получения.*/
+    /**
+     * Метод возвращает объект Word из базы данных по заданному идентификатору wordId.
+     * Объект содержит переводы на английский и русский языки, а также транскрипцию на английском языке.
+     * Если транскрипция отсутствует в базе данных, метод запускает отдельный поток для ее получения.
+     *
+     * @param wordId идентификатор слова в базе данных
+     * @return объект Word с переводами и транскрипцией
+     */
     public static Word getWord(Integer wordId) {
-        logger.info("Начало создания нового объекта слова по word_id из БД");
+        LOGGER.info("Начало создания нового объекта слова по word_id из БД");
         Connection connection = DatabaseConnection.getConnection();
         String russianWord = null;
         String englishWord = null;
@@ -81,9 +105,9 @@ public class Word implements Serializable {
                 englishWord = resultSet.getString("english_word");
                 transcription = resultSet.getString("transcription");
             }
-            logger.info("Слово получено из БД получены");
+            LOGGER.info("Слово получено из БД получены");
         } catch (SQLException e) {
-            logger.error("Ошибка получения слова из БД " + e);
+            LOGGER.error("Ошибка получения слова из БД " + e);
             throw new RuntimeException(e);
         }
 
@@ -98,47 +122,76 @@ public class Word implements Serializable {
         return new Word(englishWord, russianWord, wordId, transcription);
     }
 
+    /**
+     * Метод возвращает объект Word, соответствующий английскому или русскому слову, переданному в параметре messageText.
+     * Если слово не найдено, метод вернет первый элемент списка слов, возвращаемых методом getWordList.
+     *
+     * @param messageText строка, содержащая слово для поиска
+     * @return объект Word, соответствующий английскому или русскому слову
+     */
     public static Word getWord(String messageText) {
-        logger.info("Старт метода getWord");
-        NullCheck nullCheck = () -> logger;
+        LOGGER.info("Старт метода getWord");
+        NullCheck nullCheck = () -> LOGGER;
         nullCheck.checkForNull("getWord", messageText);
 
-        return getWordList(messageText).get(0);
+        return getWordList(null, messageText).get(0);
     }
 
-    public static ArrayList<Word> getWordList(String messageText) {
-        logger.info("Старт метода getWordList");
-        NullCheck nullCheck = () -> logger;
+    /**
+     * Возвращает список объектов Word, соответствующих сообщению пользователя.
+     * Если пользователь не равен null, возвращается список слов из пользовательского словаря.
+     *
+     * @param user        объект BotUser, может быть null
+     * @param messageText текст сообщения пользователя
+     * @return список объектов Word
+     */
+    public static ArrayList<Word> getWordList(BotUser user, String messageText) {
+        LOGGER.info("Старт метода getWordList");
+        NullCheck nullCheck = () -> LOGGER;
         nullCheck.checkForNull("getWordList", messageText);
 
+        // Удаление символов в квадратных скобках и удаление пробелов в начале и конце строки
         messageText = messageText.replaceAll("\\[.*?\\]", "").trim();
 
         Connection connection = DatabaseConnection.getConnection();
         nullCheck.checkForNull("getWord Connection ", connection);
 
+        // Разбиваем текст сообщения на слова
         ArrayList<String> words = splitMessageText(messageText);
 
-        String sql;
-        if (words.size() == 1)
-            sql = "SELECT word_id, russian_word, english_word, transcription FROM words " +
-                    "WHERE LOWER(english_word) = LOWER(?) OR LOWER(russian_word) = LOWER(?)";
-        else
-            sql = "SELECT word_id, russian_word, english_word, transcription FROM words " +
-                    "WHERE (LOWER(english_word) = LOWER(?) AND LOWER(russian_word) = LOWER(?)) " +
-                    "OR (LOWER(english_word) = LOWER(?) AND LOWER(russian_word) = LOWER(?))";
+        // Создание SQL-запроса для получения слов из базы данных
+        String sql = "SELECT word_id, russian_word, english_word, transcription FROM words WHERE ";
+        if (words.size() == 1) {
+            sql += "LOWER(english_word) = LOWER(?) OR LOWER(russian_word) = LOWER(?)";
+        } else {
+            sql += "(LOWER(english_word) = LOWER(?) AND LOWER(russian_word) = LOWER(?)) OR " +
+                    "(LOWER(english_word) = LOWER(?) AND LOWER(russian_word) = LOWER(?))";
+        }
+
+        // Добавление условия для получения слов из пользовательского словаря, если пользователь не равен null
+        if (user != null) {
+            sql += " AND word_id IN (SELECT word_id FROM user_word_lists WHERE user_id = ?)";
+        }
 
         ArrayList<Word> wordList = new ArrayList<>();
 
         try (PreparedStatement preparedStatement = connection.prepareStatement(sql)) {
             preparedStatement.setString(1, words.get(0));
-            if (words.size() == 1)
+            if (words.size() == 1) {
                 preparedStatement.setString(2, words.get(0));
-            if (words.size() > 1) {
+                if (user != null) {
+                    preparedStatement.setLong(3, user.getUserId());
+                }
+            } else {
                 preparedStatement.setString(2, words.get(1));
                 preparedStatement.setString(3, words.get(1));
                 preparedStatement.setString(4, words.get(0));
+                if (user != null) {
+                    preparedStatement.setLong(5, user.getUserId());
+                }
             }
 
+            // Выполнение запроса и обработка результата
             ResultSet resultSet = preparedStatement.executeQuery();
 
             while (resultSet.next()) {
@@ -147,16 +200,12 @@ public class Word implements Serializable {
                 String russianWord = resultSet.getString("russian_word");
                 Integer wordId = resultSet.getInt("word_id");
 
-                if (transcription == null) {
-                    Runnable runnable = () -> new Word(englishWord, russianWord, wordId).addTranscription();
-                    new Thread(runnable).start();
-                    transcription = "";
-                }
+                if (transcription == null) transcription = "";
 
                 wordList.add(new Word(englishWord, russianWord, wordId, transcription));
             }
         } catch (SQLException e) {
-            logger.error("ОШИБКА ПРИ ПОЛУЧЕНИИ СЛОВА ИЗ БД " + e);
+            LOGGER.error("ОШИБКА ПРИ ПОЛУЧЕНИИ СЛОВА ИЗ БД " + e);
             throw new RuntimeException(e);
         }
 
@@ -170,9 +219,9 @@ public class Word implements Serializable {
      * @return множество идентификаторов слов
      */
     public static HashSet<Integer> getRandomNewWordSet(BotUser user) {
-        logger.info("Старт метода Word.getRandomNewWordSet");
+        LOGGER.info("Старт метода Word.getRandomNewWordSet");
 
-        NullCheck nullCheck = () -> logger;
+        NullCheck nullCheck = () -> LOGGER;
         nullCheck.checkForNull("getWord ", user);
 
         Connection connection = DatabaseConnection.getConnection();
@@ -193,13 +242,13 @@ public class Word implements Serializable {
             preparedStatement.setLong(1, user.getUserId());
 
             ResultSet resultSet = preparedStatement.executeQuery();
-            logger.info("Запрос на получения листа случайных слов в БД отправлено");
+            LOGGER.info("Запрос на получения листа случайных слов в БД отправлено");
 
             while (resultSet.next()) {
                 wordSet.add(resultSet.getInt("word_id"));
             }
         } catch (SQLException e) {
-            logger.error("Ошибка получения листа случайных слов " + e);
+            LOGGER.error("Ошибка получения листа случайных слов " + e);
             throw new RuntimeException(e);
         }
 
@@ -213,16 +262,15 @@ public class Word implements Serializable {
      * @return случайное слово из словаря пользователя или null, если слова отсутствуют
      */
     public static @Nullable Word getRandomWordFromUserDictionary(BotUser user) {
-        logger.info("Старт метода Word.getRandomWordFromUserDictionary");
+        LOGGER.info("Старт метода Word.getRandomWordFromUserDictionary");
 
-        NullCheck nullCheck = () -> logger;
+        NullCheck nullCheck = () -> LOGGER;
         nullCheck.checkForNull("getWord ", user);
 
         Connection connection = DatabaseConnection.getConnection();
         nullCheck.checkForNull("getWord connection ", connection);
 
-        int wordId;
-        Word word = null;
+        Word word;
 
         final String SQL_QUERY = "WITH menu AS (" +
                 "   SELECT menu_name " +
@@ -253,9 +301,9 @@ public class Word implements Serializable {
             ResultSet resultSet = ps.executeQuery();
 
             word = extractWordFromResultSet(resultSet);
-            logger.info("Слово получено из БД");
+            LOGGER.info("Слово получено из БД");
         } catch (SQLException e) {
-            logger.error("Ошибка получения слова из БД " + e);
+            LOGGER.error("Ошибка получения слова из БД " + e);
             throw new RuntimeException(e);
         }
 
@@ -278,8 +326,13 @@ public class Word implements Serializable {
         return word;
     }
 
-    /*Данный метод при запросе возвращает объект File по адресу которого находится аудио файл с английской озвучкой слова.
-     * В первую очередь проверяет среди уже сохраненных слов. Если не найдено отправляет в TTS*/
+    /**
+     * Данный метод при запросе возвращает объект File, по адресу которого находится аудио файл с английской озвучкой слова.
+     * В первую очередь проверяет среди уже сохраненных слов. Если не найдено, отправляет в TTS.
+     *
+     * @return объект File, по адресу которого находится аудио файл с английской озвучкой слова
+     * @throws Exception в случае ошибки при создании аудиофайла через TTS
+     */
     public File getVoice() throws Exception {
         File directory = new File("voice");
 
@@ -290,15 +343,19 @@ public class Word implements Serializable {
         File voice = new File("voice/" + getEnWord() + ".wav");
 
         if (!voice.exists()) {
-            logger.info("Файла произношения не нашлось. Отправка слова в TTS");
+            LOGGER.info("Файла произношения не нашлось. Отправка слова в TTS");
             createSpeech();
         }
 
         return voice;
     }
 
-    /*Данный метод принимает String который нужно озвучить и "File" по адресу которого должен находится аудиофайл с
-     * озвучкой. Посылает данный текст в Microsoft TTS и полученный результат сохраняет по адресу в объекте File*/
+    /**
+     * Данный метод принимает String, который нужно озвучить, и File, по адресу которого должен находиться аудиофайл с
+     * озвучкой. Посылает данный текст в Microsoft TTS и полученный результат сохраняет по адресу в объекте File.
+     *
+     * @throws Exception в случае ошибки при получении произношения из TTS или записи аудиофайла
+     */
     private void createSpeech() throws Exception {
         File voice = new File("voice/" + getEnWord() + ".wav");
 
@@ -317,26 +374,31 @@ public class Word implements Serializable {
             // Get the synthesized speech as an audio stream
             SpeechSynthesisResult result = speechSynthesizer.SpeakText(getEnWord());
 
-            logger.info("Слово " + getEnWord() + "result.id :" + result.getResultId() + ", result.resultReason : " + result.getReason()
+            LOGGER.info("Слово " + getEnWord() + "result.id :" + result.getResultId() + ", result.resultReason : " + result.getReason()
                     + ", result.audioDuration : " + result.getAudioDuration() + ", result.audioLength : " + result.getAudioLength());
 
             if (result.getAudioData() != null) {
                 fos.write(result.getAudioData());
-                logger.info("Аудио файл записан в файл word.wav");
+                LOGGER.info("Аудио файл записан в файл word.wav");
             } else {
-                logger.error("Ошибка получения произношения из TTS");
+                LOGGER.error("Ошибка получения произношения из TTS");
             }
         } catch (Exception e) {
-            logger.error("Ошибка получения произношения из TTS " + e);
+            LOGGER.error("Ошибка получения произношения из TTS " + e);
             throw e;
         }
     }
 
-    /*Метод использует Google API для получения перевода введенного слова с английского на русский язык и наоборот.
-    Результат передается в виде списка строк. Первое слово в листе на английском второе на русском.
-    Если входное слово - null, выбрасывается исключение TranslationException.*/
+    /**
+     * Метод использует Google API для получения перевода введенного слова с английского на русский язык и наоборот.
+     * Результат передается в виде списка строк. Первое слово в листе на английском, второе на русском.
+     * Если входное слово - null, выбрасывается исключение TranslationException.
+     *
+     * @param word слово для перевода
+     * @return список строк, содержащий переведенное слово: первый элемент - на английском, второй - на русском
+     */
     private static ArrayList<String> translate(String word) {
-        NullCheck nullCheck = () -> logger;
+        NullCheck nullCheck = () -> LOGGER;
         nullCheck.checkForNull("translate", word);
 
         ArrayList<String> resultList = new ArrayList<>();
@@ -346,8 +408,15 @@ public class Word implements Serializable {
         return resultList;
     }
 
-    /*Метод отправляет запрос на сервис Google Translate для получения перевода слова на заданный язык и
-    добавляет результат в ArrayList результатов. Используется ключ API Google.*/
+    /**
+     * Метод отправляет запрос на сервис Google Translate для получения перевода слова на заданный язык и
+     * добавляет результат в ArrayList результатов. Используется ключ API Google.
+     *
+     * @param word      слово для перевода
+     * @param language  код языка, на который необходимо перевести слово
+     * @param resultList список результатов, в который будет добавлен результат перевода
+     * @throws RuntimeException если возникла ошибка при получении перевода слова из Google Translate
+     */
     private static void googleApiTranslate(String word, String language, ArrayList<String> resultList) {
         String apiKey = Api.getApiKey("google");
         OkHttpClient client = new OkHttpClient();
@@ -367,9 +436,9 @@ public class Word implements Serializable {
             response = client.newCall(request).execute();
             assert response.body() != null;
             jsonString = response.body().string();
-            logger.info("Перевод слова из переводчика удачно получен");
+            LOGGER.info("Перевод слова из переводчика удачно получен");
         } catch (IOException e) {
-            logger.error("Ошибка получения слова из переводчика. " + e);
+            LOGGER.error("Ошибка получения слова из переводчика. " + e);
             throw new RuntimeException(e);
         }
 
@@ -391,7 +460,7 @@ public class Word implements Serializable {
      * @return контекст для заданного английского слова
      */
     public String getContextOrUsageExamples(String contentType) {
-        logger.info("Старт метода getContext");
+        LOGGER.info("Старт метода getContext");
         String content = null;
         try {
             content = getContentFromDataBase(contentType);
@@ -400,14 +469,23 @@ public class Word implements Serializable {
                 content = getContentFromDataBase(contentType);
             }
         } catch (RuntimeException e) {
-            logger.error("ОШИБКА получения контекста из БД " + e.getMessage());
+            LOGGER.error("ОШИБКА получения контекста из БД " + e.getMessage());
         }
         return content;
     }
 
-    /* Метод для получения контекста из БД по английскому слову. Если контекст не найден в БД, возвращается null.*/
+    /**
+     * Метод для получения контекста или примера использования из базы данных по английскому слову.
+     * В качестве параметра передается тип контента: "context" или "usage_examples".
+     * Если контекст или пример использования не найдены в базе данных, возвращается null.
+     *
+     * @param contentType тип контента для получения: "context" или "usage_examples"
+     * @return контекст или пример использования, найденный в базе данных, или null, если не найден
+     * @throws WordTypeException если contentType не равно "context" или "usage_examples"
+     * @throws RuntimeException если возникла ошибка при получении контекста или примера использования из базы данных
+     */
     private String getContentFromDataBase(String contentType) {
-        logger.info("Старт метода Word.getContentFromDataBase");
+        LOGGER.info("Старт метода Word.getContentFromDataBase");
         Connection connection = DatabaseConnection.getConnection();
 
         if (!(contentType.equals("context") || contentType.equals("usage_examples")))
@@ -418,22 +496,27 @@ public class Word implements Serializable {
             preparedStatement.setString(1, getEnWord());
 
             ResultSet resultSet = preparedStatement.executeQuery();
-            logger.info("resultSet получен");
+            LOGGER.info("resultSet получен");
             if (resultSet.next()) {
-                logger.info("Контекст или пример использования получен из БД");
+                LOGGER.info("Контекст или пример использования получен из БД");
                 return resultSet.getString(contentType);
             }
         } catch (SQLException e) {
-            logger.error("Ошибка получения контекста или примера использования из БД");
+            LOGGER.error("Ошибка получения контекста или примера использования из БД");
             throw new RuntimeException(e);
         }
 
         return null;
     }
 
-    /*Этот метод добавляет контекст в базу данных для заданного английского слова.*/
+    /**
+     * Этот метод добавляет контекст в базу данных для заданного английского слова.
+     *
+     * @param contentType тип контента, который нужно добавить в базу данных (context или usage_examples)
+     * @throws WordTypeException если contentType не равно "context" или "usage_examples"
+     */
     void addContentToDataBase(String contentType) {
-        logger.info("Старт метода Word.addContextToDataBase");
+        LOGGER.info("Старт метода Word.addContextToDataBase");
         Connection connection = DatabaseConnection.getConnection();
         String content;
 
@@ -443,7 +526,7 @@ public class Word implements Serializable {
         try {
             content = Api.getResponse(getEnWord(), contentType);
         } catch (IOException e) {
-            logger.error("Ошибка получения контекста из API " + e);
+            LOGGER.error("Ошибка получения контекста из API " + e);
             throw new RuntimeException(e);
         }
 
@@ -456,9 +539,9 @@ public class Word implements Serializable {
             preparedStatement.setString(3, content);
 
             preparedStatement.execute();
-            logger.info("Контекст успешно добавлен в Базу данных");
+            LOGGER.info("Контекст успешно добавлен в Базу данных");
         } catch (SQLException e) {
-            logger.error("Ошибка добавления контекста в Базу данных");
+            LOGGER.error("Ошибка добавления контекста в Базу данных");
             throw new RuntimeException(e);
         }
     }
@@ -492,42 +575,50 @@ public class Word implements Serializable {
         return wordIdList;
     }
 
-    void deleteWordFromDataBase(){
-        logger.info("Начало удаления слова " + toString());
+    /**
+     * Этот метод удаляет слово из базы данных. Удаляется запись, связанная с данным словом.
+     * В случае успешного удаления, выводится сообщение об успешном удалении слова в лог.
+     * В случае ошибки, выбрасывается исключение RuntimeException.
+     */
+    void deleteWordFromDataBase() {
+        LOGGER.info("Начало удаления слова " + this);
 
         String sql = "DELETE FROM words WHERE word_id = ?;";
 
         Connection connection = DatabaseConnection.getConnection();
 
-        try (PreparedStatement preparedStatement = connection.prepareStatement(sql);){
+        try (PreparedStatement preparedStatement = connection.prepareStatement(sql)) {
             preparedStatement.setInt(1, getWordId());
 
             preparedStatement.execute();
-            logger.info("Слово " + toString() + " успешно удалено из Базы Данных");
+            LOGGER.info("Слово " + this + " успешно удалено из Базы Данных");
 
         } catch (SQLException e) {
-            logger.error("Ошибка удаления слова " + toString() + " из Базы данных " + e);
+            LOGGER.error("Ошибка удаления слова " + this + " из Базы данных " + e);
             throw new RuntimeException(e);
         }
-
-
     }
 
+    /**
+     * Этот метод добавляет транскрипцию английского слова в базу данных.
+     * Транскрипция получается с помощью вызова API.
+     * Если транскрипция получена успешно, она обновляется в базе данных для соответствующего слова.
+     */
     private void addTranscription() {
-        logger.info("Старт метода Word.addTranscription");
+        LOGGER.info("Старт метода Word.addTranscription");
         String transcription = null;
         try {
             transcription = Api.getResponse(getEnWord(), "transcription");
         } catch (IOException e) {
-            logger.error("Word.addTranscription Ошибка получения транскрипции");
+            LOGGER.error("Word.addTranscription Ошибка получения транскрипции");
         }
         if (transcription == null) {
-            logger.error("Word.addTranscription транскрипция вернулась null");
+            LOGGER.error("Word.addTranscription транскрипция вернулась null");
             return;
         }
 
         if (!transcription.matches("^\\[.*\\]$")) {
-            logger.error("Word.addTranscription транкрипция не соответствует регулярному выражению");
+            LOGGER.error("Word.addTranscription транскрипция не соответствует регулярному выражению");
             return;
         }
 
@@ -539,16 +630,20 @@ public class Word implements Serializable {
             preparedStatement.setInt(2, getWordId());
 
             preparedStatement.executeUpdate();
-            logger.info("Word.addTranscription Транскрипция успешно добавлена");
+            LOGGER.info("Word.addTranscription Транскрипция успешно добавлена");
         } catch (SQLException e) {
-            logger.error("Word.addTranscription не удалось добавить транскрипцию в Базу данных");
+            LOGGER.error("Word.addTranscription не удалось добавить транскрипцию в Базу данных");
             throw new RuntimeException(e);
         }
-
     }
 
-    /*Этот метод проверяет наличие слова в базе данных. Если слово найдено в базе данных,
-    его id добавляется в множество wordId. Метод ничего не возвращает, только изменяет переданное ему множество.*/
+    /**
+     * Этот метод проверяет наличие слова в базе данных. Если слово найдено в базе данных,
+     * его id добавляется в множество wordId. Метод ничего не возвращает, только изменяет переданное ему множество.
+     *
+     * @param word   слово для поиска в базе данных
+     * @param wordId множество, в которое будут добавлены идентификаторы найденных слов
+     */
     private static void checkNewWordInDB(String word, Set<Integer> wordId) {
         nullCheck.checkForNull("checkNewWordInDB", word, wordId);
         Connection connection = DatabaseConnection.getConnection();
@@ -562,50 +657,72 @@ public class Word implements Serializable {
             while (rs.next()) {
                 wordId.add(rs.getInt("word_id"));
             }
-            logger.info("Проверка нового слова в БД прошла успешно");
+            LOGGER.info("Проверка нового слова в БД прошла успешно");
         } catch (SQLException e) {
-            logger.error("Ошибка проверки нового слова в Базе данных " + e);
+            LOGGER.error("Ошибка проверки нового слова в Базе данных " + e);
             throw new RuntimeException(e);
         }
     }
 
-    /*Метод добавляет новое слово в базу данных, полученное из переводчика.
-    В случае успеха, возвращает идентификатор добавленного слова.
-    В случае ошибки, выбрасывает исключение TranslationException.*/
+    /**
+     * Метод добавляет новое слово в базу данных, полученное из переводчика.
+     * В случае успеха, возвращает идентификатор добавленного слова.
+     * В случае ошибки, выбрасывает исключение TranslationException.
+     *
+     * @param word   слово для перевода и добавления в базу данных
+     * @param wordId множество, в которое будет добавлен идентификатор добавленного слова
+     * @return список строк с переведенным словом (индекс 0 - английское слово, индекс 1 - русское слово)
+     * @throws TranslationException исключение, выбрасываемое при ошибке в процессе перевода
+     */
     public static ArrayList<String> addNewWordToDBFromTranslator(String word, Set<Integer> wordId) throws TranslationException {
         nullCheck.checkForNull("addNewWordToDBFromTranslator ", word, wordId);
         Connection connection = DatabaseConnection.getConnection();
         nullCheck.checkForNull("addNewWordToDBFromTranslator connection ", connection);
+
+        // Получение перевода слова
         var translatorResult = Word.translate(word);
+
+        // Проверка корректности перевода
         if (!word.equalsIgnoreCase(translatorResult.get(0)) && !word.equalsIgnoreCase(translatorResult.get(1))) {
-            logger.error("Cлово " + word + " Вернулось из словаря неправильна. оба перевода не совпадают");
+            LOGGER.error("Cлово " + word + " вернулось из словаря неправильно. оба перевода не совпадают");
             throw new TranslationException();
         }
+
+        // Форматирование перевода с сохранением регистра
         translatorResult.set(0, translatorResult.get(0).substring(0, 1).toUpperCase() + translatorResult.get(0).substring(1).toLowerCase());
         translatorResult.set(1, translatorResult.get(1).substring(0, 1).toUpperCase() + translatorResult.get(1).substring(1).toLowerCase());
+
         try {
+            // Вставка нового слова в базу данных
             PreparedStatement ps = connection.prepareStatement("INSERT INTO words (english_word, russian_word) VALUES (?, ?)");
             ps.setString(1, translatorResult.get(0));
             ps.setString(2, translatorResult.get(1));
             ps.executeUpdate();
-            logger.info("Слово успешно добавлено в общий словарь");
+            LOGGER.info("Слово успешно добавлено в общий словарь");
+
+            // Получение идентификатора добавленного слова
             ps = connection.prepareStatement("SELECT lastval()");
             ResultSet rs = ps.executeQuery();
             if (rs.next()) {
                 wordId.add(rs.getInt(1));
             }
         } catch (SQLException e) {
-            logger.error("Ошибка добавления в общий словарь " + e);
+            LOGGER.error("Ошибка добавления в общий словарь " + e);
         }
         return translatorResult;
     }
 
-    /*Метод проверяет, есть ли слова из набора в словаре пользователя.
-    Если слово уже есть в словаре, оно удаляется из набора. */
+    /**
+     * Проверяет, есть ли слова из набора в словаре пользователя.
+     * Если слово уже есть в словаре, оно удаляется из набора.
+     * @param wordId Набор идентификаторов слов для проверки.
+     * @param userId Идентификатор пользователя.
+     */
     private static void checkWordInUserDictionary(Set<Integer> wordId, Long userId) {
         nullCheck.checkForNull("checkWordInUserDictionary", wordId, userId);
         Connection connection = DatabaseConnection.getConnection();
         nullCheck.checkForNull("checkWordInUserDictionary connection ", connection);
+
         try {
             String commaSeparatedPlaceholders = String.join(",", Collections.nCopies(wordId.size(), "?"));
             PreparedStatement ps = connection.prepareStatement("SELECT word_id FROM user_word_lists WHERE user_id = ? AND word_id IN (" + commaSeparatedPlaceholders + ")");
@@ -619,9 +736,9 @@ public class Word implements Serializable {
             while (rs.next()) {
                 wordId.remove(rs.getInt("word_id"));
             }
-            logger.info("Поиск слова в словаре пользователя прошла успешно.");
+            LOGGER.info("Поиск слова в словаре пользователя прошла успешно.");
         } catch (SQLException e) {
-            logger.error("Ошибка поиска слова в словаре пользователя  " + e);
+            LOGGER.error("Ошибка поиска слова в словаре пользователя  " + e);
             throw new RuntimeException(e);
         }
     }
@@ -642,9 +759,9 @@ public class Word implements Serializable {
             ps.setLong(1, user.getUserId());
             ps.setInt(2, getWordId());
             ps.executeUpdate();
-            logger.info("Слово успешно добавлено в словарь пользователя.");
+            LOGGER.info("Слово успешно добавлено в словарь пользователя.");
         } catch (SQLException e) {
-            logger.error("Не удалось добавить слово в словарь пользователя " + e);
+            LOGGER.error("Не удалось добавить слово в словарь пользователя " + e);
             throw new RuntimeException(e);
         }
     }
@@ -652,7 +769,7 @@ public class Word implements Serializable {
     /**
      * Возвращает список слов определенного типа, связанных с пользователем.
      *
-     * @param user пользователь, для которого нужно получить список слов
+     * @param user     пользователь, для которого нужно получить список слов
      * @param listType тип списка слов ("learning" или "repetition")
      * @return список строк с информацией о словах или пустой список, если список пуст
      */
@@ -677,7 +794,7 @@ public class Word implements Serializable {
                 case "repetition" -> messagesList = processRepetitionList(resultSet);
             }
         } catch (SQLException e) {
-            logger.error("Получение листа из БД", e);
+            LOGGER.error("Получение листа из БД", e);
             throw new RuntimeException(e);
         }
 
@@ -738,7 +855,7 @@ public class Word implements Serializable {
                         messagesList.add(stringBuilder.toString().trim());
                         stringBuilder = new StringBuilder();
                     }
-                    stringBuilder.append(word.toString()).append("\n");
+                    stringBuilder.append(word).append("\n");
                 }
                 messagesList.add(stringBuilder.toString().trim());
             }
@@ -747,6 +864,11 @@ public class Word implements Serializable {
         return messagesList;
     }
 
+    /**
+     * Разбивает текст на части по разделителю "  -  ".
+     * @param text Текст для разбиения.
+     * @return Список строк с частями текста.
+     */
     private static ArrayList<String> splitMessageText(String text) {
         nullCheck.checkForNull("splitMessageText ", text);
         String[] texts = text.split(" {2}- {2}");
@@ -765,9 +887,8 @@ public class Word implements Serializable {
      * Если удаление не удалось, возвращает false.
      *
      * @param user объект BotUser, содержащий информацию о пользователе
-     * @return true, если слово успешно удалено; false, если удаление не удалось
      */
-    public Boolean deleteWordFromUserList(BotUser user) {
+    public void deleteWordFromUserList(BotUser user) {
         nullCheck.checkForNull("removeWord", user);
 
         Connection connection = DatabaseConnection.getConnection();
@@ -778,44 +899,18 @@ public class Word implements Serializable {
             preparedStatement.setInt(2, getWordId());
 
             preparedStatement.execute();
-            logger.info("Слово успешно удалено из словаря");
-            return true;
+            LOGGER.info("Слово успешно удалено из словаря");
         } catch (SQLException e) {
-            logger.error("Не удалось удалить слово из словаря" + e);
-            return false;
+            LOGGER.error("Не удалось удалить слово из словаря" + e);
         }
     }
 
-
-    /*Метод проверяет, содержит ли словарь пользователя заданное слово.
-    Возвращает true, если слово найдено, иначе false. Используется подключение к БД.*/
-    public Boolean checkWordInUserList() {
-        logger.info("Начинается чек слова в словаре пользователя");
-
-        try (PreparedStatement preparedStatement = DatabaseConnection.getConnection().prepareStatement(
-                "SELECT * FROM user_word_lists WHERE word_id = ?")) {
-            preparedStatement.setInt(1, getWordId());
-
-            ResultSet resultSet = preparedStatement.executeQuery();
-
-            if (resultSet.next())
-                return true;
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
-
-        return false;
-    }
-
-    /*Метод возвращает случайное сочетание слов на английском и русском языках.*/
-    public String toStringRandom() {
-        boolean random = new Random().nextBoolean();
-        String tempEnWord = getEnWord().substring(0, 1).toUpperCase() + getEnWord().substring(1);
-        String tempRuWord = getRuWord().substring(0, 1).toUpperCase() + getRuWord().substring(1);
-
-        return random ? tempEnWord + "  -  " + " <span class='tg-spoiler'> " + tempRuWord + "</span>" : tempRuWord + "  -  " + " <span class='tg-spoiler'> " + tempEnWord + "</span>";
-    }
-
+    /**
+     * Возвращает строку с информацией об объекте в формате: "EnWord Transcription - RuWord" или "RuWord - EnWord Transcription".
+     * Формат выбирается случайным образом.
+     *
+     * @return Строка с информацией об объекте.
+     */
     public String toStringRandomWithTranscription() {
         boolean random = new Random().nextBoolean();
         String tempEnWord = getEnWord().substring(0, 1).toUpperCase() + getEnWord().substring(1) + "   " + getTranscription();
@@ -827,11 +922,6 @@ public class Word implements Serializable {
     @Override
     public String toString() {
         return getEnWord().substring(0, 1).toUpperCase() + getEnWord().substring(1) + "  -  " +
-                getRuWord().substring(0, 1).toUpperCase() + getRuWord().substring(1);
-    }
-
-    public String toStringWithTranscription() {
-        return getEnWord().substring(0, 1).toUpperCase() + getEnWord().substring(1) + "   " + getTranscription() + "  -  " +
                 getRuWord().substring(0, 1).toUpperCase() + getRuWord().substring(1);
     }
 
