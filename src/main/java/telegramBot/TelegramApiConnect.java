@@ -248,8 +248,8 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
                             wordIdList = Word.add(inputMessageText, message);
                         } catch (TranslationException e) {
                             sendMessage(message, "К сожалению нам вернулся некорректный перевод из Гугл Переводчика. " +
-                                    "Сообщение об ошибке выслано администратору. Скоро ошибка будет исправлена. " +
-                                    "Эта ошибка не помешает вам изучать другие слова");
+                                    "Сообщение об ошибке выслано администратору. Одна из возможных причин ошибки " +
+                                    "может быть в том, что слово набрано с ошибкой.");
                         }
 
                         assert wordIdList != null;
@@ -591,13 +591,13 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
 
     @Override
     public String getBotUsername() {
-        if (botName == null) botName = Api.getApiKey("telegram_name");
+        if (botName == null) botName = Api.getApiKey("test_telegram_name");
         return botName;
     }
 
     @Override
     public String getBotToken() {
-        if (apiKey == null) apiKey = Api.getApiKey("telegram");
+        if (apiKey == null) apiKey = Api.getApiKey("test_telegram");
         return apiKey;
     }
 }

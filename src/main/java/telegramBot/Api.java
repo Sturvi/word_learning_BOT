@@ -4,6 +4,7 @@ import Exceptions.ChatGptApiException;
 import com.google.gson.Gson;
 import dataBase.DatabaseConnection;
 import org.apache.log4j.Logger;
+import org.jetbrains.annotations.NotNull;
 import org.telegram.telegrambots.meta.api.objects.Message;
 
 import java.net.URI;
@@ -22,151 +23,188 @@ public class Api {
     private static final Logger logger = Logger.getLogger(Api.class);
     private static final NullCheck nullCheck = () -> logger;
 
-    public static String getResponse(String text, String contentType) throws IOException {
+    /**
+     * Получает ответ от Chat GPT API на основе текста и типа контента.
+     *
+     * @param text         Текст, на основе которого получается ответ.
+     * @param contentType  Тип контента для получения ответа (например, "context" или "usage_examples").
+     * @return Строка, содержащая ответ от API.
+     * @throws IOException В случае ошибки сети или обработки запроса.
+     */
+    public static String getResponse(String text, @NotNull String contentType) throws IOException {
         logger.info("Старт метода Api.getResponse");
         nullCheck.checkForNull("getResponse ", text);
-        String promt;
+
+        // Формирование промпта на основе contentType
+        String prompt;
         switch (contentType) {
-            case ("context") -> promt = """
+            case "context" -> prompt = """
+                {
+                  "model": "gpt-3.5-turbo",
+                  "messages": [
                     {
-                      "model": "gpt-3.5-turbo",
-                      "messages": [
-                        {
-                          "role": "system",
-                          "content": "Пришли контекст слова %s на русском максимум в 150 символов"
-                        }
-                      ]
+                      "role": "system",
+                      "content": "Пришли контекст слова %s на русском максимум в 150 символов"
                     }
-                    """.formatted(text);
-            case ("usage_examples") -> promt = """
+                  ]
+                }
+                """.formatted(text);
+            case "usage_examples" -> prompt = """
+                {
+                  "model": "gpt-3.5-turbo",
+                  "messages": [
                     {
-                      "model": "gpt-3.5-turbo",
-                      "messages": [
-                        {
-                          "role": "system",
-                          "content": "Пришли 5 примеров использования слова %s. больше ничего не пиши. Ответ должен полностью соответствовать шаблону. Между переводами символ \\n. перед новой фразой символ \\n\\n. Все должно быть написано в одну строку. Например: I need to purchase additional supplies \\nМне нужно купить дополнительные принадлежности \\n\\n The hotel charges extra for additional guests $$nОтель берет дополнительную плату за дополнительных гостей \\n\\ne will need additional time to finish the project \\nНам понадобится дополнительное время, чтобы завершить проект."
-                        }
-                      ]
+                      "role": "system",
+                      "content": "Пришли 5 примеров использования слова %s. больше ничего не пиши. Ответ должен полностью соответствовать шаблону. Между переводами символ \\n. перед новой фразой символ \\n\\n. Все должно быть написано в одну строку. Например: I need to purchase additional supplies \\nМне нужно купить дополнительные принадлежности \\n\\n The hotel charges extra for additional guests $$nОтель берет дополнительную плату за дополнительных гостей \\n\\ne will need additional time to finish the project \\nНам понадобится дополнительное время, чтобы завершить проект."
                     }
-                    """.formatted(text);
-            case ("transcription") -> promt = """
+                  ]
+                }
+                """.formatted(text);
+            case "transcription" -> prompt = """
+                {
+                  "model": "gpt-3.5-turbo",
+                  "messages": [
                     {
-                      "model": "gpt-3.5-turbo",
-                      "messages": [
-                        {
-                          "role": "system",
-                          "content": "Пришли транскрипцию к слову %s. Пусть начинается с символа [ и заканчивается символом ] . больше ничего не пиши"
-                        }
-                      ]
+                      "role": "system",
+                      "content": "Пришли транскрипцию к слову %s. Пусть начинается с символа [ и заканчивается символом ] . больше ничего не пиши"
                     }
-                    """.formatted(text);
+                  ]
+                }
+                """.formatted(text);
             default -> {
                 logger.error("Неправильный contentType");
                 throw new ChatGptApiException();
             }
         }
-        logger.info("Промт на слово " + text + " составлен");
 
-        return openAiHttpRequest(promt);
+        logger.info("Промпт на слово " + text + " составлен");
+
+        // Отправка запроса к OpenAI Chat GPT API и получение ответа
+        return openAiHttpRequest(prompt);
     }
 
-    private static String openAiHttpRequest(String promt) throws IOException {
-        HttpRequest request = HttpRequest.newBuilder().uri(URI.create("https://api.openai.com/v1/chat/completions"))
+    /**
+     * Отправляет запрос к OpenAI Chat GPT API с указанным текстом.
+     *
+     * @param prompt Текст для отправки в запросе.
+     * @return Строка, содержащая ответ от API.
+     * @throws IOException В случае ошибки сети или обработки запроса.
+     */
+    private static String openAiHttpRequest(String prompt) throws IOException {
+        // Создание запроса к OpenAI Chat GPT API
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create("https://api.openai.com/v1/chat/completions"))
                 .header("Content-Type", "application/json")
                 .header("Authorization", "Bearer " + getApiKey("OpenAI2"))
-                .POST(HttpRequest.BodyPublishers.ofString(promt))
+                .POST(HttpRequest.BodyPublishers.ofString(prompt))
                 .timeout(Duration.ofSeconds(45))
                 .build();
 
-
+        // Создание HTTP клиента
         HttpClient client = HttpClient.newHttpClient();
-        HttpResponse<String> respone;
+        HttpResponse<String> response;
+
+        // Отправка запроса и получение ответа
         try {
-            respone = client.send(request, HttpResponse.BodyHandlers.ofString());
-            logger.info("Запрос в Chat gpt API отправлен.");
+            response = client.send(request, HttpResponse.BodyHandlers.ofString());
+            logger.info("Запрос в Chat GPT API отправлен.");
         } catch (InterruptedException e) {
-            logger.error("Ошибка отправки запроса в  Chat gpt API");
+            logger.error("Ошибка отправки запроса в Chat GPT API");
             throw new RuntimeException(e);
         }
 
-        String jsonString = respone.body();
+        // Получение тела ответа в виде строки
+        String jsonString = response.body();
 
+        // Инициализация Gson для преобразования JSON в объект
         Gson gson = new Gson();
 
-        // Парсим JSON объект в экземпляр класса ChatCompletion.
+        // Парсинг JSON объекта в экземпляр класса ChatCompletion
         ChatCompletion chatCompletion = gson.fromJson(jsonString, ChatCompletion.class);
 
+        // Проверка наличия контента в ответе и генерация исключения, если контент отсутствует
         if (chatCompletion.getContext() == null) {
             logger.error("Ошибка получения контента. вернулся null");
             throw new ChatGptApiException();
         }
 
+        // Возвращение контента из ответа API
         return chatCompletion.getContext();
     }
 
-    public static Boolean hasModerationPassed(String wordForAdd) throws IOException {
+    /**
+     * Проверяет, является ли слово корректным на английском или русском языке, и можно ли его добавить в базу данных.
+     *
+     * @param wordForAdd Слово, которое нужно проверить.
+     * @return true, если слово корректно на английском или русском языке, иначе false.
+     * @throws IOException В случае ошибки ввода-вывода.
+     */
+    public static @NotNull Boolean hasModerationPassed(String wordForAdd) throws IOException {
         logger.info("Старт метода Api.hasModerationPassed");
         nullCheck.checkForNull("hasModerationPassed ", wordForAdd);
-        String text = "Привет! Я хотел бы добавить слово в свой словарь. Можете ли вы проверить, является ли слово " + wordForAdd +
-                " корректным на английском языке, и можно ли его добавить в мою базу данных, " +
-                "которая содержит английские слова? Ответ должен содержать только true или false. " +
-                "Максимальная длина ответа 5 символов.  Кроме того, я хотел бы убедиться, что любые опечатки будут " +
-                "рассматриваться как ошибки. Спасибо!";
-        String promt = """
-                {
-                  "model": "gpt-3.5-turbo",
-                  "messages": [
-                    {
-                      "role": "system",
-                      "content": "%s"
-                    }
-                  ]
-                }
-                """.formatted(text);
 
-
-        String result[] = openAiHttpRequest(promt).trim().split("\\P{L}+");
-        boolean engControl = false;
-        if (result[0].equalsIgnoreCase("true")) {
-            engControl = true;
-        } else if (result[0].equalsIgnoreCase("false")) {
-            engControl = false;
-        }
-
-        text = "Привет! Я хотел бы добавить слово в свой словарь. Можете ли вы проверить, является ли слово " + wordForAdd +
-                " корректным на русском языке, и можно ли его добавить в мою базу данных, " +
-                "которая содержит русские слова? Ответ должен содержать только true или false. " +
-                "Максимальная длина ответа 5 символов.  Кроме того, я хотел бы убедиться, что любые опечатки будут " +
-                "рассматриваться как ошибки. Спасибо!";
-        promt = """
-                {
-                  "model": "gpt-3.5-turbo",
-                  "messages": [
-                    {
-                      "role": "system",
-                      "content": "%s"
-                    }
-                  ]
-                }
-                """.formatted(text);
-
-        String resultRu[] = openAiHttpRequest(promt).trim().split("\\P{L}+");
-        boolean ruControl = false;
-        if (result[0].equalsIgnoreCase("true")) {
-            ruControl = true;
-        } else if (result[0].equalsIgnoreCase("false")) {
-            ruControl = false;
-        }
+        // Проверка корректности слова на английском языке
+        boolean engControl = isWordValid(wordForAdd, "английском", "английские");
+        // Проверка корректности слова на русском языке
+        boolean ruControl = isWordValid(wordForAdd, "русском", "русские");
 
         return engControl || ruControl;
     }
 
-    public static void moderation (String wordForAdd, Word word, Message message){
-        Runnable runnable = () -> {
+    /**
+     * Проверяет, является ли слово корректным на указанном языке и можно ли его добавить в базу данных.
+     *
+     * @param word          Слово, которое нужно проверить.
+     * @param language      Язык, на котором проверяется корректность слова. Будет вставляться в промт в предложном падеже.
+     * @param languageWords Название того же языка, что и в параметре language, только в множественном числе. Будет вставляться в промт.
+     * @return true, если слово корректно на указанном языке, иначе false.
+     * @throws IOException В случае ошибки ввода-вывода.
+     */
+    private static boolean isWordValid(String word, String language, String languageWords) throws IOException {
+        // Формирование текста запроса с использованием параметров
+        String text = "Привет! Я хотел бы добавить слово в свой словарь. Можете ли вы проверить, является ли слово " + word +
+                " корректным на " + language + " языке, и можно ли его добавить в мою базу данных, " +
+                "которая содержит " + languageWords + " слова? Ответ должен содержать только true или false. " +
+                "Максимальная длина ответа 5 символов.  Кроме того, я хотел бы убедиться, что любые опечатки будут " +
+                "рассматриваться как ошибки. Спасибо!";
+
+        // Формирование запроса к API на основе текста
+        String prompt = """
+                {
+                  "model": "gpt-3.5-turbo",
+                  "messages": [
+                    {
+                      "role": "system",
+                      "content": "%s"
+                    }
+                  ]
+                }
+                """.formatted(text);
+
+        // Выполнение запроса и разбиение полученного ответа на массив строк
+        String[] result = openAiHttpRequest(prompt).trim().split("\\P{L}+");
+
+        // Возвращение результата проверки корректности слова на указанном языке
+        return result[0].equalsIgnoreCase("true");
+    }
+
+    /**
+     * Выполняет модерацию слова с помощью Chat GPT и обрабатывает результат.
+     *
+     * @param wordForAdd Слово для проверки и добавления.
+     * @param word       Объект Word, представляющий слово и его связанные данные.
+     * @param message    Объект Message, содержащий информацию о сообщении пользователя.
+     */
+    public static void moderation(String wordForAdd, Word word, Message message) {
+        // Создание отдельного потока для асинхронной модерации слова
+        Runnable moderationTask = () -> {
             logger.info("Слово отправлено на проверку в Chat GPT");
             try {
                 logger.info("Слово отправлено для получения контекста");
-                if (!Api.hasModerationPassed(wordForAdd)){
+
+                // Проверка слова на прохождение модерации
+                if (!Api.hasModerationPassed(wordForAdd)) {
+                    // Если слово не прошло модерацию, отправляем сообщение пользователю и удаляем слово из базы данных
                     String messageText = "К сожалению слово \"" + wordForAdd +
                             "\", которую вы пытались добавить в свой словарь не прошло модерацию и удалено!\n" +
                             "Одна из возможных причин, ошибка в наборе слова. " +
@@ -174,6 +212,7 @@ public class Api {
                     new TelegramApiConnect().sendMessage(message, messageText);
                     word.deleteWordFromDataBase();
                 } else {
+                    // Если слово прошло модерацию, добавляем контекст и примеры использования в базу данных
                     logger.info("Слово удачно прошло модерацию");
                     word.addContentToDataBase("context");
                     word.addContentToDataBase("usage_examples");
@@ -182,28 +221,41 @@ public class Api {
                 logger.error("Ошибка во время обращения к OpenAI " + e);
             }
         };
-        new Thread(runnable).start();
+
+        // Запуск потока для выполнения модерации
+        new Thread(moderationTask).start();
     }
 
-    /*Метод getApiKey() используется для получения ключа API из базы данных. Если ключ существует,
-    метод возвращает его значение. В противном случае генерируется исключение RuntimeException.
-    .*/
+    /**
+     * Получает ключ API для указанного имени API из базы данных.
+     * Если ключ существует, метод возвращает его значение, иначе генерируется исключение RuntimeException.
+     *
+     * @param apiName Имя API, для которого требуется получить ключ.
+     * @return Строка, содержащая ключ API.
+     * @throws RuntimeException В случае, если ключ API не найден в базе данных.
+     */
     public static String getApiKey(String apiName) {
-        try (PreparedStatement preparedStatement = DatabaseConnection.getConnection().prepareStatement(
-                "SELECT api_key From api_keys WHERE name = ?;")) {
+        // Запрос на получение ключа API из таблицы api_keys по имени API
+        String query = "SELECT api_key FROM api_keys WHERE name = ?;";
+
+        try (PreparedStatement preparedStatement = DatabaseConnection.getConnection().prepareStatement(query)) {
+            // Установка значения параметра в запросе
             preparedStatement.setString(1, apiName);
+
+            // Выполнение запроса и получение результата
             ResultSet resultSet = preparedStatement.executeQuery();
 
+            // Если результат содержит запись, возвращаем значение ключа API
             if (resultSet.next()) {
                 logger.info("Ключ API получен");
                 return resultSet.getString("api_key");
             } else {
-                logger.error("Resul SET вернулся null");
-                throw new RuntimeException();
+                logger.error("Result SET вернулся null");
+                throw new RuntimeException("API key not found for API name: " + apiName);
             }
         } catch (SQLException e) {
             logger.error("Ошибка получения ключа из БД " + e);
-            throw new RuntimeException(e);
+            throw new RuntimeException("Error retrieving API key from database: ", e);
         }
     }
 
