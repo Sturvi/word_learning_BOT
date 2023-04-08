@@ -1,7 +1,6 @@
 package telegramBot;
 
 import Exceptions.TranslationException;
-import dataBase.DatabaseConnection;
 import org.apache.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
@@ -16,8 +15,6 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKe
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardButton;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
-import telegramBot.user.BotsUser;
-import telegramBot.user.WordsInDatabase;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -34,35 +31,23 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
     private String botName;
 
 
+    /**
+     * Метод onUpdateReceived вызывается при получении обновления от пользователя.
+     * Обрабатывает текстовые сообщения и обратные вызовы (callback) в зависимости от типа обновления.
+     *
+     * @param update объект обновления, полученный от пользователя
+     */
     @Override
     public void onUpdateReceived(Update update) {
         try {
             logger.info("Пришел новый запрос от пользователя");
-            Message message;
 
-            User user;
-            if (update.getMessage() == null) {
-                message = update.getCallbackQuery().getMessage();
-                user = update.getCallbackQuery().getFrom();
+            BotUser user = BotUser.getBotUser(update);
+
+            if (user.callbackQueryIsNull()) {
+                handleTextMessage(user);
             } else {
-                message = update.getMessage();
-                user = update.getMessage().getFrom();
-            }
-            Long chatId = message.getChatId();
-
-            DatabaseConnection.checkUser(user);
-
-            //Если команда пришла от админа, ее обработка уходит в класс Админ
-            if (chatId.equals(Main.admin.getChatID())) {
-                logger.info("Запрос пришел от админа");
-                Main.admin.inputCommand(update);
-                return;
-            }
-
-            if (update.hasCallbackQuery()) {
-                handleCallback(update.getCallbackQuery());
-            } else {
-                handleTextMessage(update.getMessage());
+                handleCallback(user);
             }
         } catch (Exception e) {
             logger.error("ГДЕТО ОШИБКА! " + e + " " + update);
@@ -70,107 +55,110 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
     }
 
     /*Обработка нажатий на клавиши команд*/
-    private void handleCallback(@NotNull CallbackQuery callbackQuery) {
+    private void handleCallback(@NotNull BotUser user) {
         logger.info("Начало обработки запроса в нажатие клавиши");
-        Message message = callbackQuery.getMessage();
-        Long userId = message.getChatId();
-        String data = callbackQuery.getData();
-        String text = callbackQuery.getMessage().getText();
-        String userMenu = BotsUser.getUserMenu(message.getChatId());
-        assert userMenu != null;
 
+        String data = user.getCallbackQuery().getData();
+        String text = user.getMessage().getText();
+        String userMenu = user.getUserMenu();
+        assert userMenu != null;
 
         switch (data) {
             case ("remembered") -> {
                 logger.info("Принят запрос \"Я Вспомнил это слово\"");
-                WordsInDatabase.updateUserWordProgress(userId, Word.getWord(text));
-                editKeyboardAfterLeanedOrForgot(callbackQuery);
+                user.updateUserWordProgress(Word.getWord(text));
+                editKeyboardAfterLeanedOrForgot(user);
             }
             case ("forgot") -> {
                 logger.info("Принят запрос \"Я Вспомнил это слово\"");
-                editKeyboardAfterLeanedOrForgot(callbackQuery);
+                editKeyboardAfterLeanedOrForgot(user);
             }
             case ("context") -> {
                 logger.info("Принят запрос \"На получение контекста\"");
-                Word word = Word.getWord(message.getText());
-                sendMessage(message, word.getContextOrUsageExamples("context"));
+                Word word = Word.getWord(text);
+                sendMessage(user, word.getContextOrUsageExamples("context"));
             }
             case ("example") -> {
                 logger.info("Принят запрос \"На получение примера использования\"");
-                Word word = Word.getWord(message.getText());
-                sendMessage(message, word.getContextOrUsageExamples("usage_examples"));
+                Word word = Word.getWord(user.getMessage().getText());
+                sendMessage(user, word.getContextOrUsageExamples("usage_examples"));
             }
             case ("next") -> {
                 logger.info("Принят запрос на следующее слово");
-                getRandomWordAndSendToUser(message);
+                getRandomWordAndSendToUser(user);
             }
             case ("yes") -> {
                 logger.info("Принят запрос yes");
                 switch (userMenu) {
                     case ("inDeleteMenu") -> {
                         logger.info("Принят запрос yes в inDeleteMenu");
-                        Word word = Word.getWord(message.getText());
-                        word.deleteWordFromUserList(userId);
-                        deleteInlineKeyboard(callbackQuery);
-                        editMessageText(userId, message.getMessageId(), "Слово успешно удалено");
+                        Word word = Word.getWord(user.getMessage().getText());
+                        word.deleteWordFromUserList(user);
+                        deleteInlineKeyboard(user);
+                        editMessageText(user, "Слово успешно удалено");
                     }
                     case ("inAddMenu") -> {
                         try {
                             logger.info("Принят запрос yes в inAddMenu");
-                            Word word = Word.getWord(message.getText());
-                            word.addNewWordsToUserDictionary(userId);
-                            deleteInlineKeyboard(callbackQuery);
-                            editMessageText(userId, message.getMessageId(), "Слово " + word + " добавлено в твой словарь");
+                            Word word = Word.getWord(user.getMessage().getText());
+                            word.addNewWordsToUserDictionary(user);
+                            deleteInlineKeyboard(user);
+                            editMessageText(user, "Слово " + word + " добавлено в твой словарь");
                         } catch (IndexOutOfBoundsException e) {
-                            deleteInlineKeyboard(callbackQuery);
-                            sendMessage(message, "Извините, но данное слово было удалено из Базы данных");
+                            deleteInlineKeyboard(user);
+                            sendMessage(user, "Извините, но данное слово было удалено из Базы данных");
                         }
                     }
-                    default -> deleteInlineKeyboard(callbackQuery);
+                    default -> deleteInlineKeyboard(user);
                 }
             }
             case ("no") -> {
-                deleteInlineKeyboard(callbackQuery);
+                deleteInlineKeyboard(user);
             }
             case ("translator") -> {
                 logger.info("Принят запрос \"Послать слово в переводчик\"");
                 if (userMenu.equals("inAddMenu")) {
-                    deleteInlineKeyboard(callbackQuery);
+                    deleteInlineKeyboard(user);
                     String wordForTranslator = text.replaceAll("^.*?\"(.+?)\".*$", "$1");
                     Word word;
                     try {
                         var translatorResult = Word.addNewWordToDBFromTranslator(wordForTranslator, new HashSet<Integer>());
                         word = Word.getWord(translatorResult.get(0) + "  -  " + translatorResult.get(1));
-                        Api.moderation(wordForTranslator, word, message);
+                        Api.moderation(wordForTranslator, word, user);
                     } catch (TranslationException e) {
-                        sendMessage(message, "К сожалению нам вернулся некорректный перевод из Гугл Переводчика. " +
+                        sendMessage(user, "К сожалению нам вернулся некорректный перевод из Гугл Переводчика. " +
                                 "Сообщение об ошибке выслано администратору. Скоро ошибка будет исправлена. " +
                                 "Эта ошибка не помешает вам изучать другие слова");
                         throw new RuntimeException(e);
                     }
-                    sendMessage(message, "Результат полученный из Google Translator:");
-                    sendMessage(message, word.toString(), yesOrNoKeyboard());
+                    sendMessage(user, "Результат полученный из Google Translator:");
+                    sendMessage(user, word.toString(), yesOrNoKeyboard());
                 } else {
-                    deleteInlineKeyboard(callbackQuery);
-                    sendMessage(message, "Вы не находитесь в меню добавления слов. Пожалуйста, выберите сначала необходимое меню");
+                    deleteInlineKeyboard(user);
+                    sendMessage(user, "Вы не находитесь в меню добавления слов. Пожалуйста, выберите сначала необходимое меню");
                 }
             }
         }
     }
 
-    /*Обработка текстовых команд или в случае, если пользователь присылает слова на добавление в словарь*/
-    private void handleTextMessage(@NotNull Message message) {
+    /**
+     * Обрабатывает текстовые сообщения, отправленные пользователем в чат-боте на основе Telegram.
+     * В зависимости от текста сообщения, метод выполняет различные действия, такие как добавление слов,
+     * изучение слов, повторение слов и другие.
+     *
+     * @param user Объект BotUser, представляющий пользователя чат-бота.
+     */
+    private void handleTextMessage(@NotNull BotUser user) {
         NullCheck nullCheck = () -> logger;
-        nullCheck.checkForNull("handleTextMessage ", message);
+        nullCheck.checkForNull("handleTextMessage ", user);
 
-        String inputMessageText = message.getText().trim();
-        Long userId = message.getChatId();
+        String inputMessageText = user.getMessage().getText().trim();
 
         switch (inputMessageText) {
-            case ("/start") -> sendMessage(message, "Добро пожаловать в наш бот по изучению английских слов.");
+            case ("/start") -> sendMessage(user, "Добро пожаловать в наш бот по изучению английских слов.");
             case ("\uD83D\uDDD2 Добавить слова") -> {
-                BotsUser.setMenu(userId, "inAddMenu");
-                sendMessage(message, """
+                user.setMenu("inAddMenu");
+                sendMessage(user, """
                         Можете отправлять слова, которые хотите добавить в свою коллекцию.\s
 
                         Если нужно добавить несколько слов, можете отправлять их по очереди.
@@ -180,104 +168,104 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
                         Учтите, что слова переводятся автоматически, с помощью сервисов онлайн перевода и никак не проходят дополнительные проверки орфографии. Поэтому даже при небольших ошибках, перевод также будет ошибочный.""");
             }
             case ("\uD83D\uDC68\uD83C\uDFFB\u200D\uD83C\uDF93 Учить слова") -> {
-                BotsUser.setMenu(userId, "learning");
-                getRandomWordAndSendToUser(message);
+                user.setMenu("learning");
+                getRandomWordAndSendToUser(user);
             }
             case ("\uD83D\uDD01 Повторять слова") -> {
-                BotsUser.setMenu(userId, "repetition");
-                getRandomWordAndSendToUser(message);
+                user.setMenu("repetition");
+                getRandomWordAndSendToUser(user);
             }
             case ("\uD83D\uDD00 Смешанный режим") -> {
-                BotsUser.setMenu(userId, "mixed");
-                getRandomWordAndSendToUser(message);
+                user.setMenu("mixed");
+                getRandomWordAndSendToUser(user);
             }
             case ("\uD83D\uDCD3 Список изучаемых слов") -> {
-                BotsUser.setMenu(userId, "AllFalse");
-                var messagesText = Word.fetchUserWords(userId, "learning");
+                user.setMenu("AllFalse");
+                var messagesText = Word.fetchUserWords(user, "learning");
                 if (messagesText.isEmpty())
-                    sendMessage(message, "В вашем словаре нет слов на изучении");
+                    sendMessage(user, "В вашем словаре нет слов на изучении");
                 else {
                     for (String messageText : messagesText) {
-                        sendMessage(message, messageText);
+                        sendMessage(user, messageText);
                     }
                 }
             }
             case ("\uD83D\uDCD3 Список слов на повторении") -> {
-                BotsUser.setMenu(userId, "AllFalse");
-                var messagesText = Word.fetchUserWords(userId, "repetition");
+                user.setMenu("AllFalse");
+                var messagesText = Word.fetchUserWords(user, "repetition");
                 if (messagesText.isEmpty())
-                    sendMessage(message, "В вашем словаре нет слов на повторении");
+                    sendMessage(user, "В вашем словаре нет слов на повторении");
                 else {
                     for (String messageText : messagesText) {
-                        sendMessage(message, messageText);
+                        sendMessage(user, messageText);
                     }
                 }
             }
             case ("\uD83D\uDCD6 Добавить случайные слова") -> {
                 logger.info("Начало обработки \uD83D\uDCD6 Добавить случайные слова");
-                BotsUser.setMenu(userId, "inAddMenu");
-                var wordIdSet = Word.getRandomNewWordSet(userId);
+                user.setMenu("inAddMenu");
+                var wordIdSet = Word.getRandomNewWordSet(user);
 
                 if (wordIdSet.isEmpty()) {
                     logger.error("wordIdSet вернулся пустой");
-                    sendMessage(message, "Извините, произошла непредвиденная ошибка. Мы работаем над исправлением");
+                    sendMessage(user, "Извините, произошла непредвиденная ошибка. Мы работаем над исправлением");
                 }
 
-                sendMessage(message, "Выберите слова, которые хотите добавить в свой словарь:");
+                sendMessage(user, "Выберите слова, которые хотите добавить в свой словарь:");
                 for (Integer wordId : wordIdSet) {
                     Word word = Word.getWord(wordId);
-                    sendMessage(message, word.toString(), yesOrNoKeyboard());
+                    sendMessage(user, word.toString(), yesOrNoKeyboard());
                 }
                 logger.info("Слова успешно предложены");
             }
             case ("/statistic") -> {
-                BotsUser.setMenu(userId, "AllFalse");
-                sendMessage(message, BotsUser.getStatistic(userId));
+                user.setMenu("AllFalse");
+                sendMessage(user, user.getStatistic());
             }
             case ("/delete") -> {
-                BotsUser.setMenu(userId, "inDeleteMenu");
-                sendMessage(message, "Отправьте в виде сообщения слово, которое вы хотите удалить из вашего словаря!");
+                user.setMenu("inDeleteMenu");
+                sendMessage(user, "Отправьте в виде сообщения слово, которое вы хотите удалить из вашего словаря!");
             }
             default -> {
-                String menu = BotsUser.getUserMenu(userId);
+                String menu = user.getUserMenu();
                 assert menu != null;
                 switch (menu) {
                     case ("inAddMenu") -> {
                         Set<Integer> wordIdList = null;
                         try {
-                            wordIdList = Word.add(inputMessageText, message);
+                            wordIdList = Word.add(inputMessageText, user);
                         } catch (TranslationException e) {
-                            sendMessage(message, "К сожалению нам вернулся некорректный перевод из Гугл Переводчика. " +
+                            sendMessage(user, "К сожалению нам вернулся некорректный перевод из Гугл Переводчика. " +
                                     "Сообщение об ошибке выслано администратору. Одна из возможных причин ошибки " +
                                     "может быть в том, что слово набрано с ошибкой.");
                         }
 
                         assert wordIdList != null;
                         if (wordIdList.isEmpty()) {
-                            sendMessage(message, "Данное слово (или словосочетание) уже находятся в твоем словаре");
-                            sendMessage(message, "Нужен другой перевод слова \"" + inputMessageText + "\" ?", sendToTranslatorButton());
+                            sendMessage(user, "Данное слово (или словосочетание) уже находятся в твоем словаре");
+                            sendMessage(user, "Нужен другой перевод слова \"" + inputMessageText + "\" ?", sendToTranslatorButton());
                             return;
                         }
 
-                        sendMessage(message, "Добавить?..");
+                        sendMessage(user, "Добавить?..");
                         for (Integer wordId : wordIdList) {
                             Word word = Word.getWord(wordId);
-                            sendMessage(message, word.toString(), yesOrNoKeyboard());
+                            sendMessage(user, word.toString(), yesOrNoKeyboard());
                         }
-                        sendMessage(message, "Нет нужного перевода слова \"" + inputMessageText + "\" ?", sendToTranslatorButton());
+                        sendMessage(user, "Нет нужного перевода слова \"" + inputMessageText + "\" ?", sendToTranslatorButton());
                     }
                     case ("inDeleteMenu") -> {
-                        ArrayList<Word> wordArrayList = Word.getWordList(message.getText());
+                        ArrayList<Word> wordArrayList = Word.getWordList(inputMessageText);
 
                         if (!wordArrayList.isEmpty()) {
-                            sendMessage(message, "Уверены ли вы, что хотите удалить данное слово?");
+                            sendMessage(user, "Уверены ли вы, что хотите удалить данное слово?");
                         } else {
-                            sendMessage(message, "Данного слова не обнаружено в вашем словаре");
+                            sendMessage(user, "Данного слова не обнаружено в вашем словаре");
                         }
 
                         for (Word word : wordArrayList) {
                             if (word.checkWordInUserList()) {
-                                sendMessage(message, word.getEnWord() + "  -  " + word.getRuWord(), yesOrNoKeyboard());
+                                sendMessage(user, word.getEnWord() + "  -  " + word.getRuWord(), yesOrNoKeyboard());
                             }
                         }
                     }
@@ -286,12 +274,19 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
         }
     }
 
-    private void deleteInlineKeyboard(CallbackQuery callbackQuery) {
+    /**
+     * Метод deleteInlineKeyboard удаляет инлайн-клавиатуру из сообщения.
+     * Создает объект EditMessageReplyMarkup, устанавливает идентификатор чата и сообщения,
+     * устанавливает пустую клавиатуру и выполняет действие.
+     *
+     * @param user объект BotUser, содержащий информацию о пользователе
+     */
+    private void deleteInlineKeyboard(BotUser user) {
         logger.info("Начало удаления клавиатуры");
 
         EditMessageReplyMarkup editMessageReplyMarkup = new EditMessageReplyMarkup();
-        editMessageReplyMarkup.setChatId(callbackQuery.getMessage().getChatId());
-        editMessageReplyMarkup.setMessageId(callbackQuery.getMessage().getMessageId());
+        editMessageReplyMarkup.setChatId(user.getUserId());
+        editMessageReplyMarkup.setMessageId(user.getMessage().getMessageId());
 
         InlineKeyboardMarkup inlineKeyboardMarkup = new InlineKeyboardMarkup();
         inlineKeyboardMarkup.setKeyboard(new ArrayList<>());
@@ -302,27 +297,35 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
             execute(editMessageReplyMarkup);
             logger.info("Удаление клавиатуры отправлено");
         } catch (TelegramApiException e) {
-            logger.error("deleteInlineKeyboard Ошибка отправки удаления клавиатуры");
+            logger.error("deleteInlineKeyboard Ошибка отправки удаления клавиатуры" + e);
             throw new RuntimeException(e);
         }
     }
 
-    /*Изменение клавиатуры после смены словаря*/
-    private void editKeyboardAfterLeanedOrForgot(CallbackQuery callbackQuery) {
+
+    /**
+     * Изменение клавиатуры после смены словаря
+     *
+     * @param user объект пользователя
+     */
+    private void editKeyboardAfterLeanedOrForgot(BotUser user) {
+        // Проверка на null значения
         NullCheck nullCheck = () -> logger;
-        nullCheck.checkForNull("editKeyboardAfterLeanedOrForgot", callbackQuery);
+        nullCheck.checkForNull("editKeyboardAfterLeanedOrForgot", user);
 
         logger.info("Начало редактирования клавиатуры под сообщениями");
-        Message message = callbackQuery.getMessage();
+        Integer messageId = user.getMessage().getMessageId();
         EditMessageReplyMarkup editMessageReplyMarkup = new EditMessageReplyMarkup();
-        editMessageReplyMarkup.setChatId(message.getChatId());
-        editMessageReplyMarkup.setMessageId(message.getMessageId());
+        editMessageReplyMarkup.setChatId(user.getUserId());
+        editMessageReplyMarkup.setMessageId(messageId);
 
+        // Получение клавиатуры только с кнопкой "Next"
         InlineKeyboardMarkup keyboard = getKeyboardOnlyWishNext();
 
         editMessageReplyMarkup.setReplyMarkup(keyboard);
 
         try {
+            // Отправка изменений клавиатуры
             execute(editMessageReplyMarkup);
             logger.info("Изменения клавиатуры отправлены");
         } catch (TelegramApiException e) {
@@ -331,117 +334,147 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
         }
     }
 
-    /*Получение случайного слова из БД и отправка пользователю*/
-    private void getRandomWordAndSendToUser(@NotNull Message message) {
+    /**
+     * Метод getRandomWordAndSendToUser получает случайное слово из БД в соответствии с выбранным пользователем меню
+     * и отправляет его пользователю с голосовым сообщением.
+     *
+     * @param user объект BotUser, содержащий информацию о пользователе
+     */
+    private void getRandomWordAndSendToUser(@NotNull BotUser user) {
         NullCheck nullCheck = () -> logger;
-        nullCheck.checkForNull("getRandomWordAndSendToUser", message);
-        Long userId = message.getChatId();
-        String menu = BotsUser.getUserMenu(userId);
+        nullCheck.checkForNull("getRandomWordAndSendToUser", user);
+        String menu = user.getUserMenu();
 
         if (menu == null) {
             logger.error("getRandomWordAndSendToUser Меню из БД вернулось null");
-            sendMessage(message, "Что-то пошло не так. Мы сообщили об этом Администратору. Скоро все исправим!");
+            sendMessage(user, "Что-то пошло не так. Мы сообщили об этом Администратору. Скоро все исправим!");
             return;
         } else if (!(menu.equals("learning") || menu.equals("repetition") || menu.equals("mixed"))) {
-            sendMessage(message, "Вы не выбрали меню. Пожалуйста выбери меню изучения или повторения слов");
+            sendMessage(user, "Вы не выбрали меню. Пожалуйста выбери меню изучения или повторения слов");
             return;
         }
 
-        Word word = Word.getRandomWordFromUserDictionary(userId);
+        Word word = Word.getRandomWordFromUserDictionary(user);
 
         if (word == null) {
             switch (menu) {
                 case ("learning") -> {
-                    sendMessage(message, "У вас нет слов для изучения в данный момент. Пожалуйста, " +
+                    sendMessage(user, "У вас нет слов для изучения в данный момент. Пожалуйста, " +
                             "добавьте новые слова, или воспользуйтесь нашим банком слов.");
                     return;
                 }
                 case ("repetition") -> {
-                    sendMessage(message, "У вас нет слов на повторении в данный момент. Пожалуйста, " +
+                    sendMessage(user, "У вас нет слов на повторении в данный момент. Пожалуйста, " +
                             "воспользуйтесь меню \"\uD83D\uDC68\uD83C\uDFFB\u200D\uD83C\uDF93 Учить слова\"");
                     return;
                 }
                 case ("mixed") -> {
-                    sendMessage(message, "У вас нет слов для изучения или повторения в данный момент. Пожалуйста, " +
+                    sendMessage(user, "У вас нет слов для изучения или повторения в данный момент. Пожалуйста, " +
                             "добавьте новые слова, или воспользуйтесь нашим банком слов.");
                     return;
                 }
             }
         }
 
-        sendWordWithVoice(word, message);
+        sendWordWithVoice(word, user);
     }
 
-    /*Данный метод отправляет пользователю слово с произношением. В случае невозможность получить аудио файл с произношением
-    отправляет просто слово*/
-    private void sendWordWithVoice(Word word, Message message) {
+
+    /**
+     * Данный метод отправляет пользователю слово с произношением. В случае невозможность получить аудио файл с произношением
+     * отправляет просто слово
+     *
+     * @param word объект слова
+     * @param user объект пользователя
+     */
+    private void sendWordWithVoice(Word word, BotUser user) {
+        // Проверка на null значения
         NullCheck nullCheck = () -> logger;
-        nullCheck.checkForNull("sendWordWithVoice ", word, message);
+        nullCheck.checkForNull("sendWordWithVoice ", word, user);
         String textForMessage = word.toStringRandomWithTranscription();
 
         File voice;
         try {
+            // Получение файла с произношением слова
             voice = word.getVoice();
             logger.info("Произношение слова успешно получено");
         } catch (Exception e) {
             logger.error("sendWordWithVoice Ошибка получения произношения " + e);
-            sendMessage(message, textForMessage, getKeyboard(message.getChatId()));
+            sendMessage(user, textForMessage, getKeyboard(user.getUserId()));
             return;
         }
 
         InputFile inputFile = new InputFile(voice);
         SendAudio audio = new SendAudio();
         audio.setTitle("Произношение слова");
-        audio.setChatId(message.getChatId().toString());
+        audio.setChatId(user.getUserId().toString());
         audio.setAudio(inputFile);
 
         try {
+            // Отправка файла с произношением слова
             execute(audio);
             logger.info("Произношение удачно отправлено");
         } catch (TelegramApiException e) {
             logger.error("Не удалось отправить произношение " + e);
         }
 
-        sendMessage(message, textForMessage, getKeyboard(message.getChatId()));
+        // Отправка сообщения со словом и клавиатурой
+        sendMessage(user, textForMessage, getKeyboard(user.getUserId()));
     }
 
     /*Отправка обычных текстовых сообщений.*/
-    public void sendMessage(Message message, String text) {
-        sendMessage(message, text, false);
+    public void sendMessage(BotUser user, String text) {
+        sendMessage(user, text, false);
     }
 
     /*Отправка обычных текстовых сообщений с привязкой клавиатуры.*/
-    public void sendMessage(Message message, String text, InlineKeyboardMarkup inlineKeyboardMarkup) {
+    public void sendMessage(BotUser user, String text, InlineKeyboardMarkup inlineKeyboardMarkup) {
         logger.info("Начало формирования объекта SendMessage");
         SendMessage sendMessage = new SendMessage();
-        sendMessage.setChatId(message.getChatId());
+        sendMessage.setChatId(user.getUserId());
         sendMessage.setText(text);
         sendMessage.setReplyMarkup(inlineKeyboardMarkup);
 
         logger.info("Все подготовки к отправке сообщения произведены");
-        sendMsg(sendMessage);
+        executeMessage(sendMessage);
     }
 
-    public void sendMessage(Message message, String text, boolean setReplyToMessageId) {
+    /**
+     * Отправка сообщения пользователю
+     *
+     * @param user                объект пользователя
+     * @param text                текст сообщения
+     * @param setReplyToMessageId флаг установки идентификатора сообщения для ответа
+     */
+    public void sendMessage(BotUser user, String text, boolean setReplyToMessageId) {
         logger.info("Начало формирования объекта SendMessage");
         SendMessage sendMessage = new SendMessage();
         sendMessage.setText(text);
-        sendMessage.setChatId(message.getChatId());
+        sendMessage.setChatId(user.getUserId());
 
+        // Установка идентификатора сообщения для ответа
         if (setReplyToMessageId) {
-            sendMessage.setReplyToMessageId(message.getMessageId());
+            sendMessage.setReplyToMessageId(user.getMessage().getMessageId());
             logger.info("Отметка сообщения на которую отвечает выбрана");
         }
 
+        // Установка кнопок
         setButtons(sendMessage);
         logger.info("Все подготовки к отправке сообщения произведены");
-        sendMsg(sendMessage);
+        executeMessage(sendMessage);
     }
 
-    public void sendMsg(@NotNull SendMessage sendMessage) {
+    /**
+     * Отправка сообщения пользователю
+     *
+     * @param sendMessage объект сообщения
+     */
+    public void executeMessage(@NotNull SendMessage sendMessage) {
+        // Включение поддержки Markdown и HTML
         sendMessage.enableMarkdown(true);
         sendMessage.enableHtml(true);
         try {
+            // Отправка сообщения
             execute(sendMessage);
             logger.info("Cообщение отправлено пользователю");
         } catch (TelegramApiException e) {
@@ -553,13 +586,18 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
         return keyboardMarkup;
     }
 
-    /*Метод изменения текста сообщения в чате. Принимает id чата, id сообщения и новый текст.
-    Отправляет измененное сообщение.*/
-    public void editMessageText(Long chatId, Integer messageId, String newText) {
+    /**
+     * Метод editMessageText изменяет текст сообщения в чате.
+     * Задает параметры изменяемого сообщения, устанавливает новый текст и отправляет измененное сообщение.
+     *
+     * @param user    объект BotUser, содержащий информацию о пользователе
+     * @param newText новый текст сообщения
+     */
+    public void editMessageText(BotUser user, String newText) {
         EditMessageText editMessage = new EditMessageText();
         // задаем параметры изменяемого сообщения
-        editMessage.setChatId(chatId);
-        editMessage.setMessageId(messageId);
+        editMessage.setChatId(user.getUserId());
+        editMessage.setMessageId(user.getMessage().getMessageId());
         // задаем новый текст сообщения
         editMessage.setText(newText);
 
@@ -570,6 +608,7 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
             e.printStackTrace();
         }
     }
+
 
     /*Метод возвращает InlineKeyboardMarkup с одной кнопкой "Следующее слово".
     Эта кнопка имеет callbackData "next".*/
@@ -595,6 +634,12 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
         return botName;
     }
 
+    /**
+     * Возвращает токен бота, используемый для авторизации в Telegram API.
+     * Если токен еще не был установлен, метод получает его из API с использованием имени бота.
+     *
+     * @return токен бота
+     */
     @Override
     public String getBotToken() {
         if (apiKey == null) apiKey = Api.getApiKey("test_telegram");

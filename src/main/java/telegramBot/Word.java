@@ -12,8 +12,6 @@ import okhttp3.*;
 import org.apache.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.telegram.telegrambots.meta.TelegramBotsApi;
-import org.telegram.telegrambots.meta.api.objects.Message;
 
 import java.io.*;
 import java.sql.Connection;
@@ -165,11 +163,17 @@ public class Word implements Serializable {
         return wordList;
     }
 
-    public static HashSet<Integer> getRandomNewWordSet(Long userId) {
+    /**
+     * Метод возвращает множество случайных слов из базы данных, которых еще нет в словаре пользователя.
+     *
+     * @param user пользователь, для которого нужно получить множество случайных слов
+     * @return множество идентификаторов слов
+     */
+    public static HashSet<Integer> getRandomNewWordSet(BotUser user) {
         logger.info("Старт метода Word.getRandomNewWordSet");
 
         NullCheck nullCheck = () -> logger;
-        nullCheck.checkForNull("getWord ", userId);
+        nullCheck.checkForNull("getWord ", user);
 
         Connection connection = DatabaseConnection.getConnection();
         nullCheck.checkForNull("getWord connection ", connection);
@@ -186,7 +190,7 @@ public class Word implements Serializable {
                         ") " +
                         "ORDER BY RANDOM() " +
                         "LIMIT 10;")) {
-            preparedStatement.setLong(1, userId);
+            preparedStatement.setLong(1, user.getUserId());
 
             ResultSet resultSet = preparedStatement.executeQuery();
             logger.info("Запрос на получения листа случайных слов в БД отправлено");
@@ -205,14 +209,14 @@ public class Word implements Serializable {
     /**
      * Получение случайного слова из БД словаря пользователя.
      *
-     * @param userId идентификатор пользователя, для которого необходимо получить случайное слово
+     * @param user объект пользователя, для которого необходимо получить случайное слово
      * @return случайное слово из словаря пользователя или null, если слова отсутствуют
      */
-    public static @Nullable Word getRandomWordFromUserDictionary(Long userId) {
+    public static @Nullable Word getRandomWordFromUserDictionary(BotUser user) {
         logger.info("Старт метода Word.getRandomWordFromUserDictionary");
 
         NullCheck nullCheck = () -> logger;
-        nullCheck.checkForNull("getWord ", userId);
+        nullCheck.checkForNull("getWord ", user);
 
         Connection connection = DatabaseConnection.getConnection();
         nullCheck.checkForNull("getWord connection ", connection);
@@ -244,8 +248,8 @@ public class Word implements Serializable {
                 ") uwl ON w.word_id = uwl.word_id;";
 
         try (PreparedStatement ps = connection.prepareStatement(SQL_QUERY)) {
-            ps.setLong(1, userId);
-            ps.setLong(2, userId);
+            ps.setLong(1, user.getUserId());
+            ps.setLong(2, user.getUserId());
             ResultSet resultSet = ps.executeQuery();
 
             word = extractWordFromResultSet(resultSet);
@@ -459,11 +463,18 @@ public class Word implements Serializable {
         }
     }
 
-    /* Метод добавляет новое слово в словарь пользователя.
-    Если слово уже есть в словаре, метод возвращает сообщение об этом. Если слово не найдено в базе данных,
-    оно добавляется в базу данных и затем добавляется в словарь пользователя.*/
-    public static Set<Integer> add(@NotNull String wordForAdd, Message message) throws TranslationException {
-        nullCheck.checkForNull("add ", wordForAdd, message);
+    /**
+     * Метод добавляет новое слово в словарь пользователя.
+     * Если слово уже есть в словаре, метод возвращает сообщение об этом. Если слово не найдено в базе данных,
+     * оно добавляется в базу данных и затем добавляется в словарь пользователя.
+     *
+     * @param wordForAdd слово для добавления
+     * @param user       пользователь, для которого нужно добавить слово
+     * @return множество идентификаторов слов
+     * @throws TranslationException если возникла ошибка при переводе слова
+     */
+    public static Set<Integer> add(@NotNull String wordForAdd, BotUser user) throws TranslationException {
+        nullCheck.checkForNull("add ", wordForAdd, user);
 
         Set<Integer> wordIdList = new HashSet<>();
         checkNewWordInDB(wordForAdd, wordIdList);
@@ -472,11 +483,11 @@ public class Word implements Serializable {
             addNewWordToDBFromTranslator(wordForAdd, wordIdList);
             for (Integer temp : wordIdList) {
                 Word word = Word.getWord(temp);
-                Api.moderation(wordForAdd, word, message);
+                Api.moderation(wordForAdd, word, user);
             }
         }
 
-        checkWordInUserDictionary(wordIdList, message.getChatId());
+        checkWordInUserDictionary(wordIdList, user.getUserId());
 
         return wordIdList;
     }
@@ -615,16 +626,20 @@ public class Word implements Serializable {
         }
     }
 
-    /*Метод добавляет новые слова в словарь пользователя.
-    Он принимает набор идентификаторов слов и идентификатор пользователя, для которого нужно добавить слова.
-    В цикле происходит добавление каждого слова в таблицу пользовательских слов.*/
-    public void addNewWordsToUserDictionary(Long userId) {
-        nullCheck.checkForNull("addNewWordsToUserDictionary ", userId);
+    /**
+     * Метод добавляет новые слова в словарь пользователя.
+     * Он принимает набор идентификаторов слов и идентификатор пользователя, для которого нужно добавить слова.
+     * В цикле происходит добавление каждого слова в таблицу пользовательских слов.
+     *
+     * @param user пользователь, для которого нужно добавить слова
+     */
+    public void addNewWordsToUserDictionary(BotUser user) {
+        nullCheck.checkForNull("addNewWordsToUserDictionary ", user);
         Connection connection = DatabaseConnection.getConnection();
         nullCheck.checkForNull("addNewWordsToUserDictionary connection ", connection);
         try {
             PreparedStatement ps = connection.prepareCall("insert into user_word_lists (user_id, word_id) VALUES (?, ?)");
-            ps.setLong(1, userId);
+            ps.setLong(1, user.getUserId());
             ps.setInt(2, getWordId());
             ps.executeUpdate();
             logger.info("Слово успешно добавлено в словарь пользователя.");
@@ -637,12 +652,12 @@ public class Word implements Serializable {
     /**
      * Возвращает список слов определенного типа, связанных с пользователем.
      *
-     * @param userId   идентификатор пользователя
+     * @param user пользователь, для которого нужно получить список слов
      * @param listType тип списка слов ("learning" или "repetition")
      * @return список строк с информацией о словах или пустой список, если список пуст
      */
-    public static ArrayList<String> fetchUserWords(Long userId, String listType) {
-        nullCheck.checkForNull("getWordList ", userId, listType);
+    public static ArrayList<String> fetchUserWords(BotUser user, String listType) {
+        nullCheck.checkForNull("getWordList ", user, listType);
         Connection connection = DatabaseConnection.getConnection();
         nullCheck.checkForNull("getWordList Connection ", connection);
         var messagesList = new ArrayList<String>();
@@ -653,7 +668,7 @@ public class Word implements Serializable {
                         "JOIN user_word_lists uwl ON w.word_id = uwl.word_id " +
                         "WHERE uwl.user_id = ? AND uwl.list_type = ?"
         )) {
-            preparedStatement.setLong(1, userId);
+            preparedStatement.setLong(1, user.getUserId());
             preparedStatement.setString(2, listType);
             ResultSet resultSet = preparedStatement.executeQuery();
 
@@ -743,17 +758,23 @@ public class Word implements Serializable {
         return result;
     }
 
-    /*Метод для удаления слова из списка пользователя. Проверяет наличие необходимых параметров,
-    устанавливает соединение с базой данных, выполняет SQL-запрос на удаление слова из списка и логирует результат.
-    Если удаление не удалось, выбрасывает исключение.*/
-    public Boolean deleteWordFromUserList(Long userId) {
-        nullCheck.checkForNull("removeWord", userId);
+    /**
+     * Метод deleteWordFromUserList удаляет слово из списка слов пользователя.
+     * Проверяет наличие необходимых параметров, устанавливает соединение с базой данных,
+     * выполняет SQL-запрос на удаление слова из списка и логирует результат.
+     * Если удаление не удалось, возвращает false.
+     *
+     * @param user объект BotUser, содержащий информацию о пользователе
+     * @return true, если слово успешно удалено; false, если удаление не удалось
+     */
+    public Boolean deleteWordFromUserList(BotUser user) {
+        nullCheck.checkForNull("removeWord", user);
 
         Connection connection = DatabaseConnection.getConnection();
         nullCheck.checkForNull("removeWord Connection", connection);
         try (PreparedStatement preparedStatement = connection.prepareStatement(
                 "DELETE FROM user_word_lists where user_id = ? AND word_id = ?;")) {
-            preparedStatement.setLong(1, userId);
+            preparedStatement.setLong(1, user.getUserId());
             preparedStatement.setInt(2, getWordId());
 
             preparedStatement.execute();
@@ -764,6 +785,7 @@ public class Word implements Serializable {
             return false;
         }
     }
+
 
     /*Метод проверяет, содержит ли словарь пользователя заданное слово.
     Возвращает true, если слово найдено, иначе false. Используется подключение к БД.*/

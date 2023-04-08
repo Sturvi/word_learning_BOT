@@ -30,53 +30,6 @@ public class DatabaseConnection {
         }
     }
 
-    public static void checkUser(User user) {
-        NullCheck nullChecker = () -> logger;
-        nullChecker.checkForNull("checkUser", user);
-
-        Connection connection = getConnection();
-
-
-        if (connection == null) {
-            logger.error("checkUser Ошибка подключения к БД. connection вернулся null");
-            return;
-        }
-
-        long user_id = user.getId();
-        String first_name = user.getFirstName();
-        String last_name = user.getLastName();
-        String username = user.getUserName();
-        LocalDateTime localDateTime = LocalDateTime.now(ZoneId.of("UTC"));
-
-        try (PreparedStatement ps = connection.prepareStatement(
-                "INSERT INTO users (user_id, first_name, last_name, username, last_contact_time) " +
-                        "VALUES (?, ?, ?, ?, ?) " +
-                        "ON CONFLICT (user_id) " +
-                        "DO UPDATE SET first_name = EXCLUDED.first_name, last_name = EXCLUDED.last_name, " +
-                        "username = EXCLUDED.username, last_contact_time = EXCLUDED.last_contact_time")) {
-            ps.setLong(1, user_id);
-            ps.setString(2, first_name);
-            ps.setString(3, last_name);
-            ps.setString(4, username);
-            ps.setTimestamp(5, Timestamp.valueOf(localDateTime));
-            ps.executeUpdate();
-            logger.info("Пользователь " + username + " добавлен/обновлен в БД");
-        } catch (SQLException e) {
-            logger.error("Ошибка добавления/обновления пользователя в БД" + e);
-        }
-
-        try (PreparedStatement ps = connection.prepareStatement(
-                "INSERT INTO user_menu (user_id, menu_name) " +
-                        "VALUES (?, ?) " +
-                        "ON CONFLICT DO NOTHING")) {
-            ps.setLong(1, user_id);
-            ps.setString(2, "NULL");
-            ps.executeUpdate();
-        } catch (SQLException e) {
-            logger.error("Ошибка в добавлении меню по умолчанию в БД " + e);
-        }
-    }
-
     public static Connection getConnection() {
         if (connection == null) {
             connect();

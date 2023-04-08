@@ -5,7 +5,6 @@ import com.google.gson.Gson;
 import dataBase.DatabaseConnection;
 import org.apache.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
-import org.telegram.telegrambots.meta.api.objects.Message;
 
 import java.net.URI;
 import java.io.IOException;
@@ -190,12 +189,13 @@ public class Api {
 
     /**
      * Выполняет модерацию слова с помощью Chat GPT и обрабатывает результат.
+     * Запускает отдельный поток для асинхронной модерации слова и добавления контекста и примеров использования.
      *
      * @param wordForAdd Слово для проверки и добавления.
      * @param word       Объект Word, представляющий слово и его связанные данные.
-     * @param message    Объект Message, содержащий информацию о сообщении пользователя.
+     * @param user       Объект BotUser, содержащий информацию о пользователе и его сообщении.
      */
-    public static void moderation(String wordForAdd, Word word, Message message) {
+    public static void moderation(String wordForAdd, Word word, BotUser user) {
         // Создание отдельного потока для асинхронной модерации слова
         Runnable moderationTask = () -> {
             logger.info("Слово отправлено на проверку в Chat GPT");
@@ -205,11 +205,11 @@ public class Api {
                 // Проверка слова на прохождение модерации
                 if (!Api.hasModerationPassed(wordForAdd)) {
                     // Если слово не прошло модерацию, отправляем сообщение пользователю и удаляем слово из базы данных
-                    String messageText = "К сожалению слово \"" + wordForAdd +
-                            "\", которую вы пытались добавить в свой словарь не прошло модерацию и удалено!\n" +
-                            "Одна из возможных причин, ошибка в наборе слова. " +
-                            "Пожалуйста проверьте правильно ли вы ввели слова и попробуйте заново.";
-                    new TelegramApiConnect().sendMessage(message, messageText);
+                    String messageText = "К сожалению, слово \"" + wordForAdd +
+                            "\", которое вы пытались добавить в свой словарь, не прошло модерацию и было удалено!\n" +
+                            "Одна из возможных причин — ошибка в наборе слова. " +
+                            "Пожалуйста, проверьте правильность написания слова и попробуйте заново.";
+                    new TelegramApiConnect().sendMessage(user, messageText);
                     word.deleteWordFromDataBase();
                 } else {
                     // Если слово прошло модерацию, добавляем контекст и примеры использования в базу данных
@@ -225,6 +225,7 @@ public class Api {
         // Запуск потока для выполнения модерации
         new Thread(moderationTask).start();
     }
+
 
     /**
      * Получает ключ API для указанного имени API из базы данных.
