@@ -10,6 +10,7 @@ import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.User;
 
 import java.sql.*;
+import java.text.MessageFormat;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 
@@ -296,7 +297,7 @@ public class BotUser {
 
     /**
      * Обновляет прогресс изучения слова для указанного пользователя, перемещая слово между списками (изучаемые, повторение, выученные)
-     * в зависимости от текущего списка и количества повторений.
+     * в зависимости от количества повторений.
      *
      * @param word объект слова
      */
@@ -307,24 +308,14 @@ public class BotUser {
         Connection connection = DatabaseConnection.getConnection();
         nullCheck.checkForNull("changeWordListType connection ", connection);
 
-        String listType = getListTypeFromDB(word);
+        // Получаем количество повторений слова из базы данных
+        Integer repetitions = getRepetitionsFromDB(word);
 
-        // Переводим слово из списка "изучаемые" в список "повторение"
-        if (listType.equalsIgnoreCase("learning")) {
-            updateUserWordProgressInDB("repetition", word);
-            LOGGER.info("Слово переведено в словарь повторения");
-        } else {
-            // Обновляем прогресс слова в списке "повторение"
-            Integer repetitions = getRepetitionsFromDB(word);
-            if (repetitions < 7) {
-                updateUserWordProgressInDB(listType,  word);
-                LOGGER.info("Слово обновлено в словаре повторения");
-            } else {
-                // Переводим слово в список "выученные"
-                updateUserWordProgressInDB("learned",  word);
-                LOGGER.info("Слово переведено в словарь выученных");
-            }
-        }
+        // Определяем новый тип списка на основе количества повторений
+        String newListType = (repetitions < 7) ? "repetition" : "learned";
+        updateUserWordProgressInDB(newListType, word);
+
+        LOGGER.info(MessageFormat.format("Слово переведено в список {0} или обновлено количество повторений", newListType));
     }
 
     /**
