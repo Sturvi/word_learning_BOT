@@ -412,8 +412,8 @@ public class Word implements Serializable {
      * Метод отправляет запрос на сервис Google Translate для получения перевода слова на заданный язык и
      * добавляет результат в ArrayList результатов. Используется ключ API Google.
      *
-     * @param word      слово для перевода
-     * @param language  код языка, на который необходимо перевести слово
+     * @param word       слово для перевода
+     * @param language   код языка, на который необходимо перевести слово
      * @param resultList список результатов, в который будет добавлен результат перевода
      * @throws RuntimeException если возникла ошибка при получении перевода слова из Google Translate
      */
@@ -482,7 +482,7 @@ public class Word implements Serializable {
      * @param contentType тип контента для получения: "context" или "usage_examples"
      * @return контекст или пример использования, найденный в базе данных, или null, если не найден
      * @throws WordTypeException если contentType не равно "context" или "usage_examples"
-     * @throws RuntimeException если возникла ошибка при получении контекста или примера использования из базы данных
+     * @throws RuntimeException  если возникла ошибка при получении контекста или примера использования из базы данных
      */
     private String getContentFromDataBase(String contentType) {
         LOGGER.info("Старт метода Word.getContentFromDataBase");
@@ -563,7 +563,11 @@ public class Word implements Serializable {
         checkNewWordInDB(wordForAdd, wordIdList);
 
         if (wordIdList.size() == 0) {
-            addNewWordToDBFromTranslator(wordForAdd, wordIdList);
+            try {
+                addNewWordToDBFromTranslator(wordForAdd, wordIdList);
+            } catch (SQLException e) {
+                LOGGER.error(e);
+            }
             for (Integer temp : wordIdList) {
                 Word word = Word.getWord(temp);
                 Api.moderation(wordForAdd, word, user);
@@ -665,16 +669,18 @@ public class Word implements Serializable {
     }
 
     /**
-     * Метод добавляет новое слово в базу данных, полученное из переводчика.
-     * В случае успеха, возвращает идентификатор добавленного слова.
-     * В случае ошибки, выбрасывает исключение TranslationException.
+     * Метод добавляет новое слово, полученное из переводчика, в базу данных.
+     * В случае успеха, добавляет идентификатор нового слова в указанное множество wordId.
+     * Если слово уже присутствует в базе данных, добавляет его идентификатор в множество wordId.
+     * В случае ошибки, выбрасывает исключение TranslationException или SQLException.
+     * SQLException может возникнуть, если возникли проблемы с базой данных или если слово уже присутствует в базе данных.
      *
      * @param word   слово для перевода и добавления в базу данных
      * @param wordId множество, в которое будет добавлен идентификатор добавленного слова
-     * @return список строк с переведенным словом (индекс 0 - английское слово, индекс 1 - русское слово)
      * @throws TranslationException исключение, выбрасываемое при ошибке в процессе перевода
+     * @throws SQLException         исключение, выбрасываемое при ошибке взаимодействия с базой данных, включая случай, когда слово уже присутствует в базе данных
      */
-    public static ArrayList<String> addNewWordToDBFromTranslator(String word, Set<Integer> wordId) throws TranslationException {
+    public static void addNewWordToDBFromTranslator(String word, Set<Integer> wordId) throws TranslationException, SQLException {
         nullCheck.checkForNull("addNewWordToDBFromTranslator ", word, wordId);
         Connection connection = DatabaseConnection.getConnection();
         nullCheck.checkForNull("addNewWordToDBFromTranslator connection ", connection);
@@ -708,13 +714,15 @@ public class Word implements Serializable {
             }
         } catch (SQLException e) {
             LOGGER.error("Ошибка добавления в общий словарь " + e);
+            wordId.add(Word.getWord(translatorResult.get(0) + "  -  " + translatorResult.get(1)).getWordId());
+            throw e;
         }
-        return translatorResult;
     }
 
     /**
      * Проверяет, есть ли слова из набора в словаре пользователя.
      * Если слово уже есть в словаре, оно удаляется из набора.
+     *
      * @param wordId Набор идентификаторов слов для проверки.
      * @param userId Идентификатор пользователя.
      */
@@ -866,6 +874,7 @@ public class Word implements Serializable {
 
     /**
      * Разбивает текст на части по разделителю "  -  ".
+     *
      * @param text Текст для разбиения.
      * @return Список строк с частями текста.
      */

@@ -17,6 +17,7 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.Keyboard
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 import java.io.File;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -122,18 +123,26 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
                 if (userMenu.equals("inAddMenu")) {
                     deleteInlineKeyboard(user);
                     String wordForTranslator = text.replaceAll("^.*?\"(.+?)\".*$", "$1");
-                    Word word;
+                    Word word = null;
+                    var wordId = new HashSet<Integer>();
                     try {
-                        var translatorResult = Word.addNewWordToDBFromTranslator(wordForTranslator, new HashSet<>());
-                        word = Word.getWord(translatorResult.get(0) + "  -  " + translatorResult.get(1));
+                        Word.addNewWordToDBFromTranslator(wordForTranslator, wordId);
+                        for (Integer id : wordId) {
+                            word = Word.getWord(id);
+                        }
                         Api.moderation(wordForTranslator, word, user);
                     } catch (TranslationException e) {
                         sendMessage(user, "К сожалению нам вернулся некорректный перевод из Гугл Переводчика. " +
                                 "Сообщение об ошибке выслано администратору. Скоро ошибка будет исправлена. " +
                                 "Эта ошибка не помешает вам изучать другие слова");
                         throw new RuntimeException(e);
+                    } catch (SQLException e) {
+                        for (Integer id : wordId) {
+                            word = Word.getWord(id);
+                        }
                     }
                     sendMessage(user, "Результат полученный из Google Translator:");
+                    assert word != null;
                     sendMessage(user, word.toString(), yesOrNoKeyboard());
                 } else {
                     deleteInlineKeyboard(user);
@@ -680,7 +689,7 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
      */
     @Override
     public String getBotUsername() {
-        if (botName == null) botName = Api.getApiKey("test_telegram_name");
+        if (botName == null) botName = Api.getApiKey("telegram_name");
         return botName;
     }
 
@@ -692,7 +701,7 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
      */
     @Override
     public String getBotToken() {
-        if (apiKey == null) apiKey = Api.getApiKey("test_telegram");
+        if (apiKey == null) apiKey = Api.getApiKey("telegram");
         return apiKey;
     }
 }
