@@ -22,13 +22,19 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class TelegramApiConnect extends TelegramLongPollingBot {
 
     private static final Logger LOGGER = Logger.getLogger(TelegramApiConnect.class);
+    private final ExecutorService executorService;
     private String apiKey;
     private String botName;
 
+    public TelegramApiConnect() {
+        this.executorService = Executors.newFixedThreadPool(10);
+    }
 
     /**
      * Метод onUpdateReceived вызывается при получении обновления от пользователя.
@@ -38,19 +44,24 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
      */
     @Override
     public void onUpdateReceived(Update update) {
-        try {
-            LOGGER.info("Пришел новый запрос от пользователя");
+        Runnable newUserRequest = () -> {
+            try {
+                LOGGER.info("Пришел новый запрос от пользователя");
 
-            BotUser user = BotUser.getBotUser(update);
+                BotUser user = BotUser.getBotUser(update);
 
-            if (user.callbackQueryIsNull()) {
-                handleTextMessage(user);
-            } else {
-                handleCallback(user);
+                if (user.callbackQueryIsNull()) {
+                    handleTextMessage(user);
+                } else {
+                    handleCallback(user);
+                }
+            } catch (Exception e) {
+                LOGGER.error("ГДЕТО ОШИБКА! " + e + " " + update);
             }
-        } catch (Exception e) {
-            LOGGER.error("ГДЕТО ОШИБКА! " + e + " " + update);
-        }
+        };
+
+        // Используем пул потоков для выполнения задачи
+        executorService.submit(newUserRequest);
     }
 
     /**

@@ -289,7 +289,7 @@ public class Word implements Serializable {
                 "           (uwl.list_type = 'learning') OR  " +
                 "           (uwl.list_type = 'repetition' AND EXTRACT(day FROM CURRENT_TIMESTAMP - last_repetition_time) >= timer_value) " +
                 "       )) OR " +
-                "       ((m.menu_name = 'repetition' OR m.menu_name = 'mixed') AND uwl.list_type = 'learned' AND EXTRACT(day FROM CURRENT_TIMESTAMP - last_repetition_time) >= 10) " +
+                "       ((m.menu_name = 'repetition' OR m.menu_name = 'mixed') AND uwl.list_type = 'learned' AND EXTRACT(day FROM CURRENT_TIMESTAMP - last_repetition_time) >= timer_value) " +
                 "   ) " +
                 "   ORDER BY RANDOM() " +
                 "   LIMIT 1 " +
