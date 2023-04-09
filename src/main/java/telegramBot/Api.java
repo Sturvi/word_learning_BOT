@@ -196,9 +196,10 @@ public class Api {
      * @param user       Объект BotUser, содержащий информацию о пользователе и его сообщении.
      */
     public static void moderation(String wordForAdd, Word word, BotUser user) {
+        LOGGER.info("Старт метода Модерации");
         // Создание отдельного потока для асинхронной модерации слова
         Runnable moderationTask = () -> {
-            LOGGER.info("Слово отправлено на проверку в Chat GPT");
+            LOGGER.info("Новый поток модерации слова " + wordForAdd + ". Слово отправлено на проверку в Chat GPT");
             try {
                 LOGGER.info("Слово отправлено для получения контекста");
 
