@@ -409,7 +409,7 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
         // Проверка на null значения
         NullCheck nullCheck = () -> LOGGER;
         nullCheck.checkForNull("sendWordWithVoice ", word, user);
-        String textForMessage = word.toStringRandomWithTranscription();
+        String textForMessage = word.toStringRandomWithTranscription(user);
 
         File voice;
         try {
@@ -700,7 +700,7 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
      */
     @Override
     public String getBotUsername() {
-        if (botName == null) botName = Api.getApiKey("telegram_name");
+        if (botName == null) botName = Api.getApiKey("test_telegram_name");
         return botName;
     }
 
@@ -712,7 +712,7 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
      */
     @Override
     public String getBotToken() {
-        if (apiKey == null) apiKey = Api.getApiKey("telegram");
+        if (apiKey == null) apiKey = Api.getApiKey("test_telegram");
         return apiKey;
     }
 }
