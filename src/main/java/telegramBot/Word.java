@@ -160,7 +160,13 @@ public class Word implements Serializable {
         ArrayList<String> words = splitMessageText(messageText);
 
         // Создание SQL-запроса для получения слов из базы данных
-        String sql = "SELECT word_id, russian_word, english_word, transcription FROM words WHERE ";
+        String sql;
+        if (user != null) {
+            sql = "SELECT w.word_id, w.russian_word, w.english_word, w.transcription FROM words w INNER JOIN user_word_lists uwl ON w.word_id = uwl.word_id WHERE uwl.user_id = ? AND (";
+        } else {
+            sql = "SELECT word_id, russian_word, english_word, transcription FROM words WHERE ";
+        }
+
         if (words.size() == 1) {
             sql += "LOWER(english_word) = LOWER(?) OR LOWER(russian_word) = LOWER(?)";
         } else {
@@ -168,26 +174,31 @@ public class Word implements Serializable {
                     "(LOWER(english_word) = LOWER(?) AND LOWER(russian_word) = LOWER(?))";
         }
 
-        // Добавление условия для получения слов из пользовательского словаря, если пользователь не равен null
         if (user != null) {
-            sql += " AND word_id IN (SELECT word_id FROM user_word_lists WHERE user_id = ?)";
+            sql += ")";
         }
 
         ArrayList<Word> wordList = new ArrayList<>();
 
         try (PreparedStatement preparedStatement = connection.prepareStatement(sql)) {
-            preparedStatement.setString(1, words.get(0));
-            if (words.size() == 1) {
+            if (user != null) {
+                preparedStatement.setLong(1, user.getUserId());
                 preparedStatement.setString(2, words.get(0));
-                if (user != null) {
-                    preparedStatement.setLong(3, user.getUserId());
+                if (words.size() == 1) {
+                    preparedStatement.setString(3, words.get(0));
+                } else {
+                    preparedStatement.setString(3, words.get(1));
+                    preparedStatement.setString(4, words.get(1));
+                    preparedStatement.setString(5, words.get(0));
                 }
             } else {
-                preparedStatement.setString(2, words.get(1));
-                preparedStatement.setString(3, words.get(1));
-                preparedStatement.setString(4, words.get(0));
-                if (user != null) {
-                    preparedStatement.setLong(5, user.getUserId());
+                preparedStatement.setString(1, words.get(0));
+                if (words.size() == 1) {
+                    preparedStatement.setString(2, words.get(0));
+                } else {
+                    preparedStatement.setString(2, words.get(1));
+                    preparedStatement.setString(3, words.get(1));
+                    preparedStatement.setString(4, words.get(0));
                 }
             }
 
@@ -827,7 +838,7 @@ public class Word implements Serializable {
                 messagesList.add(stringBuilder.toString().trim());
                 stringBuilder = new StringBuilder();
             }
-            stringBuilder.append(word).append("\n");
+            stringBuilder.append(word.toStringWithTranscription()).append("\n");
         }
         messagesList.add(stringBuilder.toString().trim());
         return messagesList;
@@ -863,7 +874,7 @@ public class Word implements Serializable {
                         messagesList.add(stringBuilder.toString().trim());
                         stringBuilder = new StringBuilder();
                     }
-                    stringBuilder.append(word).append("\n");
+                    stringBuilder.append(word.toStringWithTranscription()).append("\n");
                 }
                 messagesList.add(stringBuilder.toString().trim());
             }
@@ -920,17 +931,36 @@ public class Word implements Serializable {
      *
      * @return Строка с информацией об объекте.
      */
-    public String toStringRandomWithTranscription() {
+    public String toStringRandomWithTranscription(BotUser user) {
+        int repetitions = user.getRepetitionsCount(this);
+
+        String result = "Слово из словаря \"";
+
+        if (repetitions == 0) {
+            result += "Изучаемые слова\"\n\n";
+        } else if (repetitions < 7) {
+            result += "Слова на повторении " + repetitions + " уровня\"\n\n";
+        } else {
+            result += "Изученное слово\"\n\n";
+        }
+
         boolean random = new Random().nextBoolean();
         String tempEnWord = getEnWord().substring(0, 1).toUpperCase() + getEnWord().substring(1) + "   " + getTranscription();
         String tempRuWord = getRuWord().substring(0, 1).toUpperCase() + getRuWord().substring(1);
 
-        return random ? tempEnWord + "  -  " + " <span class='tg-spoiler'> " + tempRuWord + "</span>" : tempRuWord + "  -  " + " <span class='tg-spoiler'> " + tempEnWord + "</span>";
+        result += random ? tempEnWord + "  -  " + " <span class='tg-spoiler'> " + tempRuWord + "</span>" : tempRuWord + "  -  " + " <span class='tg-spoiler'> " + tempEnWord + "</span>";
+
+        return result;
     }
 
     @Override
     public String toString() {
         return getEnWord().substring(0, 1).toUpperCase() + getEnWord().substring(1) + "  -  " +
+                getRuWord().substring(0, 1).toUpperCase() + getRuWord().substring(1);
+    }
+
+    public String toStringWithTranscription() {
+        return getEnWord().substring(0, 1).toUpperCase() + getEnWord().substring(1) + "   " + getTranscription() + "  -  " +
                 getRuWord().substring(0, 1).toUpperCase() + getRuWord().substring(1);
     }
 

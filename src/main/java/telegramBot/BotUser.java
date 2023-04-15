@@ -309,10 +309,10 @@ public class BotUser {
         nullCheck.checkForNull("changeWordListType connection ", connection);
 
         // Получаем количество повторений слова из базы данных
-        Integer repetitions = getRepetitionsFromDB(word);
+        Integer repetitions = getRepetitionsCount(word);
 
         // Определяем новый тип списка на основе количества повторений
-        String newListType = (repetitions < 7) ? "repetition" : "learned";
+        String newListType = (repetitions < 6) ? "repetition" : "learned";
         updateUserWordProgressInDB(newListType, word);
 
         LOGGER.info(MessageFormat.format("Слово переведено в список {0} или обновлено количество повторений", newListType));
@@ -385,8 +385,8 @@ public class BotUser {
      * @param word объект слова
      * @return значение таймера
      */
-    private @NotNull Integer getRepetitionsFromDB(Word word) {
-        nullCheck.checkForNull("getTimesValue ", word);
+    public @NotNull Integer getRepetitionsCount(Word word) {
+        nullCheck.checkForNull("getRepetitionsCount ", word);
 
         Connection connection = DatabaseConnection.getConnection();
 
