@@ -151,7 +151,7 @@ public class Word implements Serializable {
         nullCheck.checkForNull("getWordList", messageText);
 
         // Удаление символов в квадратных скобках и удаление пробелов в начале и конце строки
-        messageText = messageText.replaceAll("\\[.*?\\]", "").trim();
+        messageText = messageText.replaceAll("\\[.*?\\]|^.*?\\n\\n", "").trim();
 
         Connection connection = DatabaseConnection.getConnection();
         nullCheck.checkForNull("getWord Connection ", connection);
