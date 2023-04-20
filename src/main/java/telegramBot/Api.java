@@ -238,7 +238,7 @@ public class Api {
     public
     static String getEnglishLearningAnswer(String question) throws IOException {
         // Формирование текста запроса с использованием параметров
-        String text = "Привет! Меня интересует следующий вопрос: " + question + ". Спасибо!";
+        String text = "Меня интересует следующий вопрос: " + question;
 
         // Формирование запроса к API на основе текста
         String prompt = """
@@ -253,7 +253,7 @@ public class Api {
             }
             """.formatted(text);
 
-        // Выполнение запроса и получение ответа
+        LOGGER.info("getEnglishLearningAnswer: question = " + question + ", запрос отправлен");
 
         // Возвращение результата
         return openAiHttpRequest(prompt).trim();

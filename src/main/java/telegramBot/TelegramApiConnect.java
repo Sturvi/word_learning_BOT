@@ -8,6 +8,7 @@ import org.telegram.telegrambots.meta.api.methods.send.SendAudio;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageReplyMarkup;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
+import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.*;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
@@ -17,6 +18,7 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.Keyboard
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 import java.io.File;
+import java.io.IOException;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -178,6 +180,10 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
 
         switch (inputMessageText) {
             case ("/start") -> sendMessage(user, "Добро пожаловать в наш бот по изучению английских слов.");
+            case ("/answer") -> {
+                user.setMenu("inAnswerMenu");
+                sendMessage(user, "Пришлите пожалуйста ваш вопрос. \n\nПримечание: получение ответа может занять некоторое время");
+            }
             case ("\uD83D\uDDD2 Добавить слова") -> {
                 user.setMenu("inAddMenu");
                 sendMessage(user, """
@@ -287,6 +293,20 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
 
                         for (Word word : wordArrayList) {
                             sendMessage(user, word.getEnWord() + "  -  " + word.getRuWord(), yesOrNoKeyboard());
+                        }
+                    }
+                    case ("inAnswerMenu") -> {
+                        LOGGER.info("Получен запрос на получение ответа");
+                        sendMessage(user, "Формируется ответ на ваш вопрос. Пожалуйста ожидайте...");
+                        LOGGER.info("Отправка предварительного сообщения отправлена");
+                        try {
+                            String answer = Api.getEnglishLearningAnswer(inputMessageText);
+                            LOGGER.info("Получен ответ от Chat GPT " + answer);
+                            sendMessage(user, answer);
+                            LOGGER.info("Отправлен ответ пользователю");
+                        } catch (Exception e) {
+                            LOGGER.error("Ошибка отправления ответа " + e);
+                            throw new RuntimeException(e);
                         }
                     }
                 }
@@ -502,6 +522,7 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
         // Включение поддержки Markdown и HTML
         sendMessage.enableMarkdown(true);
         sendMessage.enableHtml(true);
+
         try {
             // Отправка сообщения
             execute(sendMessage);
