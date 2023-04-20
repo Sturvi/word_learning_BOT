@@ -19,7 +19,7 @@ public class BotUser {
     private static final Logger LOGGER = Logger.getLogger(BotUser.class);
     private static final NullCheck nullCheck = () -> LOGGER;
     private final Long userId;
-    private final Message message;
+    private Message message;
     private final CallbackQuery callbackQuery;
     private String userMenu;
 
@@ -90,6 +90,10 @@ public class BotUser {
      */
     public boolean callbackQueryIsNull() {
         return callbackQuery == null;
+    }
+
+    public void setMessage(Message message) {
+        this.message = message;
     }
 
     /**
