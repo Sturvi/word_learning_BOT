@@ -266,7 +266,7 @@ public class BotUser {
         String first_name = user.getFirstName();
         String last_name = user.getLastName();
         String username = user.getUserName();
-        LocalDateTime localDateTime = LocalDateTime.now(ZoneId.of("UTC"));
+        LocalDateTime localDateTime = LocalDateTime.now(ZoneId.of("Asia/Baku"));
 
         // Добавление или обновление пользователя в БД
         try (PreparedStatement ps = connection.prepareStatement(
