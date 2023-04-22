@@ -14,6 +14,8 @@ import java.text.MessageFormat;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 
+import static java.lang.String.format;
+
 public class BotUser {
 
     private static final Logger LOGGER = Logger.getLogger(BotUser.class);
@@ -266,12 +268,12 @@ public class BotUser {
         String first_name = user.getFirstName();
         String last_name = user.getLastName();
         String username = user.getUserName();
-        LocalDateTime localDateTime = LocalDateTime.now(ZoneId.of("UTC"));
+        LocalDateTime localDateTime = LocalDateTime.now(ZoneId.of("Asia/Baku"));
 
         // Добавление или обновление пользователя в БД
         try (PreparedStatement ps = connection.prepareStatement(
-                "INSERT INTO users (user_id, first_name, last_name, username, last_contact_time) " +
-                        "VALUES (?, ?, ?, ?, ?) " +
+                "INSERT INTO users (user_id, first_name, last_name, username, last_contact_time, status) " +
+                        "VALUES (?, ?, ?, ?, ?, true) " +
                         "ON CONFLICT (user_id) " +
                         "DO UPDATE SET first_name = EXCLUDED.first_name, last_name = EXCLUDED.last_name, " +
                         "username = EXCLUDED.username, last_contact_time = EXCLUDED.last_contact_time")) {
@@ -380,6 +382,24 @@ public class BotUser {
         }
 
         return list_type;
+    }
+
+    /**
+     * Деактивирует пользователя в базе данных.
+     * @param userId ID пользователя, который должен быть деактивирован.
+     * @throws RuntimeException если возникла ошибка при выполнении SQL-запроса.
+     */
+    public static void deactivateUser(Long userId) {
+        String sql = "UPDATE users SET status = false WHERE user_id = ?;";
+
+        try (PreparedStatement preparedStatement = DatabaseConnection.getConnection().prepareStatement(sql)) {
+            preparedStatement.setLong(1, userId);
+            int rowsUpdated = preparedStatement.executeUpdate();
+            LOGGER.info("Пользователь с ID "+ userId + " был деактивирован. Количество обновленных строк: " + rowsUpdated);
+        } catch (SQLException e) {
+            LOGGER.error("Ошибка при выполнении SQL-запроса для деактивации пользователя с ID " + userId, e);
+            throw new RuntimeException(e);
+        }
     }
 
     /**
