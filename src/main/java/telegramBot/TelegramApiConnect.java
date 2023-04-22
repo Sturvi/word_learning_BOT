@@ -6,6 +6,7 @@ import org.jetbrains.annotations.NotNull;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.send.SendAudio;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageReplyMarkup;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
 import org.telegram.telegrambots.meta.api.objects.Message;
@@ -297,15 +298,19 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
                     }
                     case ("inAnswerMenu") -> {
                         LOGGER.info("Получен запрос на получение ответа");
-                        sendMessage(user, "Формируется ответ на ваш вопрос. Пожалуйста ожидайте...");
+                        Message newMessage = sendMessage(user, "Формируется ответ на ваш вопрос. Пожалуйста ожидайте...");
                         LOGGER.info("Отправка предварительного сообщения отправлена");
+
                         try {
                             String answer = Api.getEnglishLearningAnswer(inputMessageText);
                             LOGGER.info("Получен ответ от Chat GPT " + answer);
+                            deleteMessage(newMessage.getChatId(), newMessage.getMessageId());
                             sendMessage(user, answer);
                             LOGGER.info("Отправлен ответ пользователю");
                         } catch (Exception e) {
                             LOGGER.error("Ошибка отправления ответа " + e);
+                            deleteMessage(newMessage.getChatId(), newMessage.getMessageId());
+                            sendMessage(user, "Произошла ошибка при генерации ответа. Попробуйте снова. Если ошибка повторится вновь рекомендуется повторить попытку через некоторое время");
                             throw new RuntimeException(e);
                         }
                     }
@@ -466,8 +471,8 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
      * @param user Пользователь, которому нужно отправить сообщение.
      * @param text Текст сообщения.
      */
-    public void sendMessage(BotUser user, String text) {
-        sendMessage(user, text, false);
+    public Message sendMessage(BotUser user, String text) {
+        return sendMessage(user, text, false);
     }
 
     /**
@@ -495,7 +500,7 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
      * @param text                текст сообщения
      * @param setReplyToMessageId флаг установки идентификатора сообщения для ответа
      */
-    public void sendMessage(@NotNull BotUser user, String text, boolean setReplyToMessageId) {
+    public Message sendMessage(@NotNull BotUser user, String text, boolean setReplyToMessageId) {
         LOGGER.info("Начало формирования объекта SendMessage");
         SendMessage sendMessage = new SendMessage();
         sendMessage.setText(text);
@@ -510,7 +515,7 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
         // Установка кнопок
         setButtons(sendMessage);
         LOGGER.info("Все подготовки к отправке сообщения произведены");
-        executeMessage(sendMessage);
+        return executeMessage(sendMessage);
     }
 
     /**
@@ -518,19 +523,22 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
      *
      * @param sendMessage объект сообщения
      */
-    public void executeMessage(@NotNull SendMessage sendMessage) {
+    public Message executeMessage(@NotNull SendMessage sendMessage) {
         // Включение поддержки Markdown и HTML
         sendMessage.enableMarkdown(true);
         sendMessage.enableHtml(true);
 
+        Message message = null;
         try {
             // Отправка сообщения
-            execute(sendMessage);
+            message = execute(sendMessage);
             LOGGER.info("Cообщение отправлено пользователю");
         } catch (TelegramApiException e) {
             LOGGER.error("sendMsg Ошибка отправки сообщения пользователю " + e);
             e.printStackTrace();
         }
+
+        return message;
     }
 
     /**
@@ -667,27 +675,61 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
     }
 
     /**
-     * Метод editMessageText изменяет текст сообщения в чате.
-     * Задает параметры изменяемого сообщения, устанавливает новый текст и отправляет измененное сообщение.
+     * Метод editMessageText обновляет текст сообщения в чате.
+     * Устанавливает параметры редактируемого сообщения, устанавливает новый текст и отправляет обновленное сообщение.
      *
-     * @param user    объект BotUser, содержащий информацию о пользователе
-     * @param newText новый текст сообщения
+     * @param userId    идентификатор пользователя BotUser, содержащий информацию о пользователе
+     * @param messageId идентификатор сообщения, которое нужно отредактировать
+     * @param newText   новый текст сообщения
      */
-    public void editMessageText(@NotNull BotUser user, String newText) {
+    public void editMessageText(Long userId, Integer messageId, String newText) {
         EditMessageText editMessage = new EditMessageText();
-        // задаем параметры изменяемого сообщения
-        editMessage.setChatId(user.getUserId());
-        editMessage.setMessageId(user.getMessage().getMessageId());
-        // задаем новый текст сообщения
+        // устанавливаем параметры редактируемого сообщения
+        editMessage.setChatId(userId);
+        editMessage.setMessageId(messageId);
+        // устанавливаем новый текст сообщения
         editMessage.setText(newText);
 
         try {
-            // отправляем измененное сообщение
+            // отправляем обновленное сообщение
             execute(editMessage);
         } catch (TelegramApiException e) {
             e.printStackTrace();
         }
     }
+
+    /**
+     * Перегруженный метод editMessageText для удобства использования с объектом BotUser.
+     * Вызывает основной метод editMessageText с параметрами userId и messageId, извлеченными из объекта BotUser.
+     *
+     * @param user    объект BotUser, содержащий информацию о пользователе
+     * @param newText новый текст сообщения
+     */
+    public void editMessageText(@NotNull BotUser user, String newText){
+        editMessageText(user.getUserId(), user.getMessage().getMessageId(), newText);
+    }
+
+    /**
+     * Удаляет сообщение с заданным идентификатором из чата с заданным идентификатором пользователя.
+     *
+     * @param userId Идентификатор пользователя, чей чат содержит сообщение.
+     * @param messageId Идентификатор удаляемого сообщения.
+     */
+    private void deleteMessage(Long userId, Integer messageId) {
+        DeleteMessage deleteMessage = new DeleteMessage();
+        deleteMessage.setChatId(userId);
+        deleteMessage.setMessageId(messageId);
+
+        try {
+            execute(deleteMessage);
+            LOGGER.info("Сообщение с идентификатором " + messageId + " удалено из чата с пользователем с идентификатором " + userId);
+        } catch (TelegramApiException e) {
+            LOGGER.error("Ошибка при удалении сообщения с идентификатором " + messageId + " из чата с пользователем с идентификатором " + userId + ": " + e.getMessage());
+            throw new RuntimeException(e);
+        }
+    }
+
+
 
     /**
      * Метод, который возвращает InlineKeyboardMarkup с одной кнопкой "Следующее слово".
@@ -721,7 +763,7 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
      */
     @Override
     public String getBotUsername() {
-        if (botName == null) botName = Api.getApiKey("telegram_name");
+        if (botName == null) botName = Api.getApiKey("test_telegram_name");
         return botName;
     }
 
@@ -733,7 +775,7 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
      */
     @Override
     public String getBotToken() {
-        if (apiKey == null) apiKey = Api.getApiKey("telegram");
+        if (apiKey == null) apiKey = Api.getApiKey("test_telegram");
         return apiKey;
     }
 }

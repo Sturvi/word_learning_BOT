@@ -235,10 +235,11 @@ public class Api {
      * @return Ответ на вопрос, связанный с изучением английского языка, или "false", если вопрос не связан с этой темой.
      * @throws IOException Если возникает ошибка при выполнении запроса к API.
      */
-    public
-    static String getEnglishLearningAnswer(String question) throws IOException {
+    public static String getEnglishLearningAnswer(String question) throws IOException {
+        question = question.replaceAll("\"", " ").replaceAll("\n", " . ");
+
         // Формирование текста запроса с использованием параметров
-        String text = "Меня интересует следующий вопрос: " + question;
+        String text = "Ты в роли репетитора английского языка. Меня интересует следующий вопрос: " + question;
 
         // Формирование запроса к API на основе текста
         String prompt = """
