@@ -1,6 +1,7 @@
 package telegramBot;
 
 import Exceptions.TranslationException;
+import dataBase.DatabaseConnection;
 import org.apache.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
@@ -20,6 +21,8 @@ import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 import java.io.File;
 import java.io.IOException;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -50,6 +53,12 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
         Runnable newUserRequest = () -> {
             try {
                 LOGGER.info("Пришел новый запрос от пользователя");
+
+                if (update.hasMyChatMember() && update.getMyChatMember().getNewChatMember().getStatus().equals("kicked")){
+                    Long chatId = update.getMyChatMember().getFrom().getId();
+                    BotUser.deactivateUser(chatId);
+                    return;
+                }
 
                 BotUser user = BotUser.getBotUser(update);
 
@@ -180,7 +189,9 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
         String inputMessageText = user.getMessage().getText().trim();
 
         switch (inputMessageText) {
-            case ("/start") -> sendMessage(user, "Добро пожаловать в наш бот по изучению английских слов.");
+            case ("/start"), ("/help") -> {
+                sendHelpText(user);
+            }
             case ("/answer") -> {
                 user.setMenu("inAnswerMenu");
                 sendMessage(user, "Пришлите пожалуйста ваш вопрос. \n\nПримечание: получение ответа может занять некоторое время");
@@ -730,7 +741,22 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
         }
     }
 
+    private void sendHelpText(BotUser user) {
+        String helpText = "";
+        String sql = "Select message from message_templates where template_name = 'help'";
 
+        try (PreparedStatement preparedStatement = DatabaseConnection.getConnection().prepareStatement(sql)) {
+            ResultSet resultSet = preparedStatement.executeQuery();
+
+            if (resultSet.next()){
+                helpText = resultSet.getString("message");
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+
+        sendMessage(user, helpText);
+    }
 
     /**
      * Метод, который возвращает InlineKeyboardMarkup с одной кнопкой "Следующее слово".
