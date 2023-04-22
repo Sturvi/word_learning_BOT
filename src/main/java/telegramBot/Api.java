@@ -11,6 +11,7 @@ import java.io.IOException;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -239,7 +240,8 @@ public class Api {
         question = question.replaceAll("\"", " ").replaceAll("\n", " . ");
 
         // Формирование текста запроса с использованием параметров
-        String text = "Ты в роли репетитора английского языка. Меня интересует следующий вопрос: " + question;
+        String text = "Ты в роли репетитора английского языка. Меня интересует следующий вопрос: " + question
+                + ". Если вопрос не связан с изучением языка, ответь что можешь отвечать только на вопросы связанные с изучением языка";
 
         // Формирование запроса к API на основе текста
         String prompt = """
@@ -260,7 +262,23 @@ public class Api {
         return openAiHttpRequest(prompt).trim();
     }
 
+    public static void addQuestionToDataBase(Long userId, String question, String answer) {
+        LOGGER.info("Начало добавления вопроса и ответа в базу данных");
+        Connection connection = DatabaseConnection.getConnection();
 
+        String sql = "INSERT INTO questions_answers (user_id, question, answer) VALUES (?, ?, ?)";
+
+        try (PreparedStatement preparedStatement = connection.prepareStatement(sql)) {
+            preparedStatement.setLong(1, userId);
+            preparedStatement.setString(2, question);
+            preparedStatement.setString(3, answer);
+            preparedStatement.executeUpdate();
+            LOGGER.info("Вопрос и ответ успешно добавлены в базу данных");
+        } catch (SQLException e) {
+            LOGGER.error("Ошибка при добавлении вопроса и ответа в базу данных", e);
+            throw new RuntimeException(e);
+        }
+    }
 
     /**
      * Получает ключ API для указанного имени API из базы данных.

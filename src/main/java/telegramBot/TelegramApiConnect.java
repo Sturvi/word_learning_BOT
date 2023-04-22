@@ -306,6 +306,7 @@ public class TelegramApiConnect extends TelegramLongPollingBot {
                             LOGGER.info("Получен ответ от Chat GPT " + answer);
                             deleteMessage(newMessage.getChatId(), newMessage.getMessageId());
                             sendMessage(user, answer);
+                            Api.addQuestionToDataBase(user.getUserId(), inputMessageText, answer);
                             LOGGER.info("Отправлен ответ пользователю");
                         } catch (Exception e) {
                             LOGGER.error("Ошибка отправления ответа " + e);
